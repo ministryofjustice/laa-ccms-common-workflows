@@ -1,0 +1,183 @@
+name: Gradle build and publish
+
+on:
+  workflow_call:
+    inputs:
+      java_version:
+        required: false
+        type: string
+        default: 21
+      java_distribution:
+        required: false
+        type: string
+        default: temurin
+      build_command:
+        required: false
+        type: string
+        default: build
+      build_args:
+        required: false
+        type: string
+      integration_test_task:
+        required: false
+        type: string
+      publish_package:
+        required: false
+        type: string
+        default: false
+      is_snapshot:
+        required: false
+        type: string
+        default: false
+      override_version:
+        required: false
+        type: string
+      create_tag:
+        required: false
+        type: string
+        default: false
+      junit_results:
+        required: false
+        type: string
+        default: true
+      junit_results_path:
+        required: false
+        type: string
+        default: build/test-results
+      junit_report:
+        required: false
+        type: string
+        default: true
+      junit_report_path:
+        required: false
+        type: string
+        default: build/reports/tests
+      checkstyle_report:
+        required: false
+        type: string
+        default: true
+      checkstyle_report_path:
+        required: false
+        type: string
+        default: build/reports/checkstyle
+      jacoco_coverage_report:
+        required: false
+        type: string
+        default: true
+      jacoco_coverage_report_path:
+        required: false
+        type: string
+        default: build/reports/jacoco
+    secrets:
+      gh_token:
+        required: true
+      aws_region:
+        required: false
+    outputs:
+      published_artifact_version:
+        description: "The version of the published artifact."
+        value: ${{ jobs.build-and-publish.outputs.published_artifact_version }}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+
+    env:
+      GITHUB_TOKEN: ${{ secrets.gh_token }}
+      AWS_REGION: ${{ secrets.aws_region }}
+
+    outputs:
+      published_artifact_version: ${{ steps.capture_published_version.outputs.published_artifact_version }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK ${{ inputs.java_version }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ inputs.java_version }}
+          distribution: ${{ inputs.java_distribution }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Gradle ${{ inputs.build_command }}
+        run: ./gradlew ${{ inputs.build_command }} ${{ inputs.build_args }}
+
+      - name: Test coverage verification
+        if: ${{ inputs.jacoco_coverage_report == 'true' }}
+        run: ./gradlew jacocoTestCoverageVerification
+
+      - name: Integration test
+        if: ${{ inputs.integration_test_task != '' }}
+        run: ./gradlew ${{ inputs.integration_test_task }}
+
+      - name: Publish snapshot package
+        if: ${{ inputs.publish_package == 'true' && inputs.create_tag == 'false' && inputs.is_snapshot == 'true' }}
+        run: ./gradlew updateSnapshotVersion && ./gradlew publish
+
+      - name: Publish package
+        if: ${{ inputs.publish_package == 'true' && inputs.create_tag == 'false' && inputs.is_snapshot != 'true' }}
+        env:
+          OVERRIDE_VERSION: ${{ inputs.override_version }}
+        run: |
+          PUBLISH_ARGS=()
+          if [[ -n "$OVERRIDE_VERSION" ]]; then
+            PUBLISH_ARGS+=(-Pversion=$OVERRIDE_VERSION)
+          fi
+          ./gradlew publish ${PUBLISH_ARGS[@]}
+
+      - name: Create tag
+        if: ${{ inputs.create_tag == 'true' }}
+        run: |
+          git config --global user.email "github@justice.gov.uk"
+          git config --global user.name "GitHub Actions Bot"
+          ./gradlew release -Prelease.useAutomaticVersion=true
+
+      - name: Capture published version
+        if: ${{ inputs.publish_package == 'true' }}
+        id: capture_published_version
+        run: |
+          if [[ -n "${{ inputs.override_version }}" ]]; then
+            VERSION=${{ inputs.override_version }}
+          else
+            VERSION=$(grep "version=" gradle.properties | cut -d'=' -f2)
+          fi
+          echo "published_artifact_version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Artifact published with version: \`${VERSION}\`" >> $GITHUB_STEP_SUMMARY
+          echo "Published artifact version: $VERSION"
+
+      - name: Upload test results
+        if: ${{ inputs.junit_results == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: ${{ inputs.junit_results_path }}
+          retention-days: 14
+
+      - name: Upload test report
+        if: ${{ inputs.junit_report == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: ${{ inputs.junit_report_path }}
+          retention-days: 14
+
+      - name: Upload checkstyle report
+        if: ${{ inputs.checkstyle_report == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkstyle-report
+          path: ${{ inputs.checkstyle_report_path }}
+          retention-days: 14
+
+      - name: Upload jacoco coverage report
+        if: ${{ inputs.jacoco_coverage_report == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-coverage-report
+          path: ${{ inputs.jacoco_coverage_report_path }}
+          retention-days: 14

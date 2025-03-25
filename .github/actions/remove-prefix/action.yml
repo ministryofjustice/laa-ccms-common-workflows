@@ -1,0 +1,26 @@
+name: "Remove a prefix from a string"
+
+inputs:
+  string:
+    required: true
+  prefix:
+    required: true
+
+outputs:
+  result:
+    description: "The resulting string with the given prefix removed."
+    value: ${{ steps.remove-prefix.outputs.result }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Remove prefix
+      id: remove-prefix
+      shell: bash
+      env:
+        STRING_TO_PROCESS: ${{ inputs.string }}
+        PREFIX: ${{ inputs.prefix }}
+      run: |
+        result=${STRING_TO_PROCESS#$PREFIX}
+        echo result=$result >> $GITHUB_OUTPUT
+        echo "Result: ${result}"
