@@ -1,0 +1,82 @@
+name: Publish image to ECR
+
+on:
+  workflow_call:
+    inputs:
+      java_version:
+        required: false
+        type: string
+        default: 21
+      java_distribution:
+        required: false
+        type: string
+        default: temurin
+      image_version:
+        required: true
+        type: string
+      jar_subproject:
+        required: false
+        type: string
+    secrets:
+      gh_token:
+        required: true
+      ecr_region:
+        required: true
+      ecr_repository:
+        required: true
+      ecr_role_to_assume:
+        required: true
+    outputs:
+      published_image_version:
+        description: "The version of the published image."
+        value: ${{ jobs.ecr-publish-image.outputs.published_image_version }}
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  ecr-publish-image:
+    runs-on: ubuntu-latest
+
+    env:
+      GITHUB_TOKEN: ${{ secrets.gh_token }}
+
+    outputs:
+      published_image_version: ${{ steps.build-and-publish-image.outputs.published_image_version }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK ${{ inputs.java_version }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ inputs.java_version }}
+          distribution: ${{ inputs.java_distribution }}
+
+      - name: Configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.ecr_role_to_assume }}
+          aws-region: ${{ secrets.ecr_region }}
+
+      - name: Login ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        id: login-ecr
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build and publish image
+        id: build-and-publish-image
+        run: |
+          gradle_subproject=''
+          if [[ -n "${{ inputs.jar_subproject }}" ]]; then
+            gradle_subproject=":${{ inputs.jar_subproject }}:"
+          fi
+          image_name=${{ steps.login-ecr.outputs.registry }}/${{ secrets.ecr_repository }}:${{ inputs.image_version }}
+          ./gradlew ${gradle_subproject}bootBuildImage \
+            --imageName $image_name
+          docker push $image_name
+          echo "published_image_version=${{ inputs.image_version }}" >> $GITHUB_OUTPUT
+          echo "Image published to ECR with version: \`${{ inputs.image_version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "Published image version: ${{ inputs.image_version }}"

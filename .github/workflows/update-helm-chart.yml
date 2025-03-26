@@ -1,0 +1,66 @@
+name: Update helm chart
+
+on:
+  workflow_call:
+    inputs:
+      helm_charts_repository:
+        required: true
+        type: string
+      helm_charts_branch:
+        required: true
+        type: string
+      service_name:
+        required: true
+        type: string
+      subchart_name:
+        required: true
+        type: string
+      application_version:
+        required: true
+        type: string
+      feature_branch:
+        required: false
+        type: string
+    secrets:
+      gh_token:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  update-helm-chart:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout charts repo
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/${{ inputs.helm_charts_repository }}
+          ref: ${{ inputs.helm_charts_branch }}
+          path: ${{ inputs.helm_charts_repository }}
+          token: ${{ secrets.gh_token }}
+      - name: Update helm chart
+        env:
+          FEATURE_BRANCH: ${{ inputs.feature_branch }}
+        working-directory: ${{ inputs.helm_charts_repository }}
+        run: |
+          git config --global user.email "github@justice.gov.uk"
+          git config --global user.name "GitHub Actions Bot"
+
+          if [[ -n "$FEATURE_BRANCH" ]]; then
+            git fetch origin
+            if git rev-parse --verify origin/$FEATURE_BRANCH; then
+              git checkout $FEATURE_BRANCH
+              git pull origin $FEATURE_BRANCH
+            else
+              git checkout -b $FEATURE_BRANCH
+            fi
+          fi
+
+          cd ${{ inputs.service_name }}/charts/${{ inputs.subchart_name }}
+          yq eval-all "( .appVersion = \"${{ inputs.application_version }}\" )" -i Chart.yaml
+
+          git add .
+          git commit -m "update ${{ inputs.subchart_name }} appVersion to ${{ inputs.application_version }}"
+          git push origin HEAD
+          echo "Helm chart '${{ inputs.subchart_name }}' appVersion updated to \`${{ inputs.application_version }}\` on branch '$(git rev-parse --abbrev-ref HEAD)'" >> $GITHUB_STEP_SUMMARY

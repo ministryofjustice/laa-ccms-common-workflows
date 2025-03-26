@@ -1,0 +1,37 @@
+name: "Define arguments for Snyk CLI commands"
+
+inputs:
+  snyk_organisation:
+    required: false
+    type: string
+  snyk_test_exclude:
+    required: false
+    type: string
+  snyk_target_reference:
+    required: false
+    type: string
+
+outputs:
+  snyk_args:
+    description: "A string of arguments that can be added to Snyk CLI commands."
+    value: ${{ steps.set-snyk-args.outputs.snyk_args }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set Snyk arguments
+      id: set-snyk-args
+      shell: bash
+      run: |
+        SNYK_ARGS=()
+        if [[ -n "${{ inputs.snyk_organisation }}" ]]; then
+          SNYK_ARGS+=(--org=${{ inputs.snyk_organisation }})
+        fi
+        if [[ -n "${{ inputs.snyk_test_exclude }}" ]]; then
+          SNYK_ARGS+=(--exclude=${{ inputs.snyk_test_exclude }})
+        fi
+        if [[ -n "${{ inputs.snyk_target_reference }}" ]]; then
+          SNYK_ARGS+=(--target-reference=${{ inputs.snyk_target_reference }})
+        fi
+        echo snyk_args="${SNYK_ARGS[@]}" >> $GITHUB_OUTPUT
+        echo "Snyk arguments: '${snyk_args}'"
