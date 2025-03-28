@@ -34,4 +34,4 @@ runs:
           SNYK_ARGS+=(--target-reference=${{ inputs.snyk_target_reference }})
         fi
         echo snyk_args="${SNYK_ARGS[@]}" >> $GITHUB_OUTPUT
-        echo "Snyk arguments: '${snyk_args}'"
+        echo "Snyk arguments: '${SNYK_ARGS[@]}'"
