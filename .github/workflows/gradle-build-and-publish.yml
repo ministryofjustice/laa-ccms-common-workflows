@@ -79,7 +79,7 @@ on:
         value: ${{ jobs.build-and-publish.outputs.published_artifact_version }}
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
