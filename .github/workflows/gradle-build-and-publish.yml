@@ -95,6 +95,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        if: ${{ inputs.create_tag != 'true' }}
+      - uses: actions/checkout@v4
+        if: ${{ inputs.create_tag == 'true' }}
+        with:
+          ref: main
       - name: Set up JDK ${{ inputs.java_version }}
         uses: actions/setup-java@v4
         with:
