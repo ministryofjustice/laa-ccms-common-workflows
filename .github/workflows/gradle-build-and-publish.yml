@@ -158,8 +158,6 @@ jobs:
           if [ -z "${{ steps.get_workflow_token.outputs.token }}" ]; then
             echo "GitHub App token was not generated for this run."
           fi
-          git config --global user.email "github@justice.gov.uk"
-          git config --global user.name "GitHub Actions Bot"
           ./gradlew release -Prelease.useAutomaticVersion=true
         env:
           GITHUB_TOKEN: ${{ steps.get_workflow_token.outputs.token || env.GITHUB_TOKEN }}
