@@ -74,9 +74,11 @@ on:
       aws_region:
         required: false
       application_id:
-        required: true
+        required: false
       application_private_key:
-        required: true
+        required: false
+      application_organisation:
+        required: false
     outputs:
       published_artifact_version:
         description: "The version of the published artifact."
@@ -146,6 +148,7 @@ jobs:
         with:
           application_id: ${{ secrets.application_id }}
           application_private_key: ${{ secrets.application_private_key }}
+          application_organisation: ${{ secrets.application_organisation }}
 
       - name: Create tag
         if: ${{ inputs.create_tag == 'true' }}
