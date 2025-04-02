@@ -160,7 +160,7 @@ jobs:
           else
             echo "GitHub App token will be used for this run."
           fi
-          echo ${{ github.repository }}
+          git remote set-url origin https://x-access-token:${{ steps.get_workflow_token.outputs.token }}@github.com/${{ github.repository }}.git
           git config --global user.email "laa-ccms-caab-service[bot]@users.noreply.github.com"
           git config --global user.name "laa-ccms-caab-service[bot]"
           ./gradlew release -Prelease.useAutomaticVersion=true
