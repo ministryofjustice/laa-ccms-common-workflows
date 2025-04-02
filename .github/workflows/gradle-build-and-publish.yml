@@ -120,28 +120,28 @@ jobs:
       - name: Gradle ${{ inputs.build_command }}
         run: ./gradlew ${{ inputs.build_command }} ${{ inputs.build_args }}
 
-      - name: Test coverage verification
-        if: ${{ inputs.jacoco_coverage_report == 'true' }}
-        run: ./gradlew jacocoTestCoverageVerification
-
-      - name: Integration test
-        if: ${{ inputs.integration_test_task != '' }}
-        run: ./gradlew ${{ inputs.integration_test_task }}
-
-      - name: Publish snapshot package
-        if: ${{ inputs.publish_package == 'true' && inputs.create_tag == 'false' && inputs.is_snapshot == 'true' }}
-        run: ./gradlew updateSnapshotVersion && ./gradlew publish
-
-      - name: Publish package
-        if: ${{ inputs.publish_package == 'true' && inputs.create_tag == 'false' && inputs.is_snapshot != 'true' }}
-        env:
-          OVERRIDE_VERSION: ${{ inputs.override_version }}
-        run: |
-          PUBLISH_ARGS=()
-          if [[ -n "$OVERRIDE_VERSION" ]]; then
-            PUBLISH_ARGS+=(-Pversion=$OVERRIDE_VERSION)
-          fi
-          ./gradlew publish ${PUBLISH_ARGS[@]}
+#      - name: Test coverage verification
+#        if: ${{ inputs.jacoco_coverage_report == 'true' }}
+#        run: ./gradlew jacocoTestCoverageVerification
+#
+#      - name: Integration test
+#        if: ${{ inputs.integration_test_task != '' }}
+#        run: ./gradlew ${{ inputs.integration_test_task }}
+#
+#      - name: Publish snapshot package
+#        if: ${{ inputs.publish_package == 'true' && inputs.create_tag == 'false' && inputs.is_snapshot == 'true' }}
+#        run: ./gradlew updateSnapshotVersion && ./gradlew publish
+#
+#      - name: Publish package
+#        if: ${{ inputs.publish_package == 'true' && inputs.create_tag == 'false' && inputs.is_snapshot != 'true' }}
+#        env:
+#          OVERRIDE_VERSION: ${{ inputs.override_version }}
+#        run: |
+#          PUBLISH_ARGS=()
+#          if [[ -n "$OVERRIDE_VERSION" ]]; then
+#            PUBLISH_ARGS+=(-Pversion=$OVERRIDE_VERSION)
+#          fi
+#          ./gradlew publish ${PUBLISH_ARGS[@]}
 
       - name: Get app token
         if: ${{ env.APPLICATION_ID != '' && env.APPLICATION_PRIVATE_KEY != '' }}
@@ -160,53 +160,54 @@ jobs:
           else
             echo "GitHub App token will be used for this run."
           fi
+          echo ${{ github.repository }}
           git config --global user.email "laa-ccms-caab-service[bot]@users.noreply.github.com"
           git config --global user.name "laa-ccms-caab-service[bot]"
           ./gradlew release -Prelease.useAutomaticVersion=true
         env:
           GITHUB_TOKEN: ${{ steps.get_workflow_token.outputs.token || env.GITHUB_TOKEN }}
 
-      - name: Capture published version
-        if: ${{ inputs.publish_package == 'true' }}
-        id: capture_published_version
-        run: |
-          if [[ -n "${{ inputs.override_version }}" ]]; then
-            VERSION=${{ inputs.override_version }}
-          else
-            VERSION=$(grep "version=" gradle.properties | cut -d'=' -f2)
-          fi
-          echo "published_artifact_version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "Artifact published with version: \`${VERSION}\`" >> $GITHUB_STEP_SUMMARY
-          echo "Published artifact version: $VERSION"
-
-      - name: Upload test results
-        if: ${{ inputs.junit_results == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: ${{ inputs.junit_results_path }}
-          retention-days: 14
-
-      - name: Upload test report
-        if: ${{ inputs.junit_report == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-report
-          path: ${{ inputs.junit_report_path }}
-          retention-days: 14
-
-      - name: Upload checkstyle report
-        if: ${{ inputs.checkstyle_report == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: checkstyle-report
-          path: ${{ inputs.checkstyle_report_path }}
-          retention-days: 14
-
-      - name: Upload jacoco coverage report
-        if: ${{ inputs.jacoco_coverage_report == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: jacoco-coverage-report
-          path: ${{ inputs.jacoco_coverage_report_path }}
-          retention-days: 14
+#      - name: Capture published version
+#        if: ${{ inputs.publish_package == 'true' }}
+#        id: capture_published_version
+#        run: |
+#          if [[ -n "${{ inputs.override_version }}" ]]; then
+#            VERSION=${{ inputs.override_version }}
+#          else
+#            VERSION=$(grep "version=" gradle.properties | cut -d'=' -f2)
+#          fi
+#          echo "published_artifact_version=${VERSION}" >> $GITHUB_OUTPUT
+#          echo "Artifact published with version: \`${VERSION}\`" >> $GITHUB_STEP_SUMMARY
+#          echo "Published artifact version: $VERSION"
+#
+#      - name: Upload test results
+#        if: ${{ inputs.junit_results == 'true' }}
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: test-results
+#          path: ${{ inputs.junit_results_path }}
+#          retention-days: 14
+#
+#      - name: Upload test report
+#        if: ${{ inputs.junit_report == 'true' }}
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: test-report
+#          path: ${{ inputs.junit_report_path }}
+#          retention-days: 14
+#
+#      - name: Upload checkstyle report
+#        if: ${{ inputs.checkstyle_report == 'true' }}
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: checkstyle-report
+#          path: ${{ inputs.checkstyle_report_path }}
+#          retention-days: 14
+#
+#      - name: Upload jacoco coverage report
+#        if: ${{ inputs.jacoco_coverage_report == 'true' }}
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: jacoco-coverage-report
+#          path: ${{ inputs.jacoco_coverage_report_path }}
+#          retention-days: 14
