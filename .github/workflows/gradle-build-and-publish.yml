@@ -157,7 +157,11 @@ jobs:
         run: |
           if [ -z "${{ steps.get_workflow_token.outputs.token }}" ]; then
             echo "GitHub App token was not generated for this run."
+          else
+            echo "GitHub App token will be used for this run.
           fi
+          git config --global user.email "laa-ccms-caab-service[bot]@users.noreply.github.com"
+          git config --global user.name "laa-ccms-caab-service[bot]"
           ./gradlew release -Prelease.useAutomaticVersion=true
         env:
           GITHUB_TOKEN: ${{ steps.get_workflow_token.outputs.token || env.GITHUB_TOKEN }}
