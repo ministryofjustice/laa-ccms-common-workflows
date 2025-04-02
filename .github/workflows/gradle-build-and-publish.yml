@@ -155,6 +155,9 @@ jobs:
       - name: Create tag
         if: ${{ inputs.create_tag == 'true' }}
         run: |
+          if [ -z "${{ steps.get_workflow_token.outputs.token }}" ]; then
+            echo "GitHub App token was not generated for this run."
+          fi
           git config --global user.email "github@justice.gov.uk"
           git config --global user.name "GitHub Actions Bot"
           ./gradlew release -Prelease.useAutomaticVersion=true
