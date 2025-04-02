@@ -148,7 +148,7 @@ jobs:
         with:
           application_id: ${{ secrets.application_id }}
           application_private_key: ${{ secrets.application_private_key }}
-          application_organisation: ${{ secrets.application_organisation }}
+          organization: ${{ secrets.application_organisation }}
 
       - name: Create tag
         if: ${{ inputs.create_tag == 'true' }}
