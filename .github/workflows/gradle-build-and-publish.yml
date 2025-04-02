@@ -102,12 +102,21 @@ jobs:
       published_artifact_version: ${{ steps.capture_published_version.outputs.published_artifact_version }}
 
     steps:
+      - name: Get app token
+        if: ${{ env.APPLICATION_ID != '' && env.APPLICATION_PRIVATE_KEY != '' }}
+        id: get_workflow_token
+        uses: peter-murray/workflow-application-token-action@v4
+        with:
+          application_id: ${{ secrets.application_id }}
+          application_private_key: ${{ secrets.application_private_key }}
+          organization: ${{ secrets.application_organisation }}
       - uses: actions/checkout@v4
         if: ${{ inputs.create_tag != 'true' }}
       - uses: actions/checkout@v4
         if: ${{ inputs.create_tag == 'true' }}
         with:
           ref: main
+          token: ${{ steps.get_workflow_token.outputs.token }}
       - name: Set up JDK ${{ inputs.java_version }}
         uses: actions/setup-java@v4
         with:
@@ -142,15 +151,6 @@ jobs:
 #            PUBLISH_ARGS+=(-Pversion=$OVERRIDE_VERSION)
 #          fi
 #          ./gradlew publish ${PUBLISH_ARGS[@]}
-
-      - name: Get app token
-        if: ${{ env.APPLICATION_ID != '' && env.APPLICATION_PRIVATE_KEY != '' }}
-        id: get_workflow_token
-        uses: peter-murray/workflow-application-token-action@v4
-        with:
-          application_id: ${{ secrets.application_id }}
-          application_private_key: ${{ secrets.application_private_key }}
-          organization: ${{ secrets.application_organisation }}
 
       - name: Create tag
         if: ${{ inputs.create_tag == 'true' }}
