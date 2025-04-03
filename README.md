@@ -62,13 +62,17 @@ jobs:
 | `checkstyle_report_path`      | The path of the checkstyle report to upload.                                                                                                                            | false    | `build/reports/checkstyle` |
 | `jacoco_coverage_report`      | Whether jacoco coverage is enabled for this project, and a report artifact should be produced.                                                                          | false    | `true`                     |
 | `jacoco_coverage_report_path` | The path of the jacoco report to upload.                                                                                                                                | false    | `build/reports/jacoco`     |
+| `github_bot_username`         | The bot username to use for commits made by this workflow.                                                                                                              | false    | `github-actions-bot`       |
 
 #### Secrets
 
-| Input        | Description                                                              | Required | Default |
-|--------------|--------------------------------------------------------------------------|----------|---------|
-| `gh_token`   | The github token from the calling repository.                            | true     |         |
-| `aws_region` | The AWS Region to use for AWS CLI commands, if required for build tasks. | false    |         |
+| Input                     | Description                                                                                           | Required | Default |
+|---------------------------|-------------------------------------------------------------------------------------------------------|----------|---------|
+| `gh_token`                | The github token from the calling repository.                                                         | true     |         |
+| `aws_region`              | The AWS Region to use for AWS CLI commands, if required for build tasks.                              | false    |         |
+| `github_app_id`           | The ID of the GitHub App to use for release commits - e.g. updating semantic version, creating a tag. | false    |         |
+| `github_app_private_key`  | The private key of the GitHub App to use for release commits.                                         | false    |         |
+| `github_app_organisation` | The organisation in which the GitHub App has been installed.                                          | false    |         |
 
 #### Outputs
 
@@ -255,20 +259,24 @@ jobs:
 
 #### Inputs
 
-| Input                    | Description                                                                                                                                 | Required | Default |
-|--------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|----------|---------|
-| `helm_charts_repository` | The name of the helm chart repository.                                                                                                      | true     |         |
-| `helm_charts_branch`     | The branch to checkout.                                                                                                                     | true     |         |
-| `service_name`           | The parent service name.                                                                                                                    | true     |         |
-| `subchart_name`          | The name of the subchart to update.                                                                                                         | true     |         |
-| `application_version`    | The new application version.                                                                                                                | true     |         |
-| `feature_branch`         | The name of the feature branch to update. Creates the branch if it does not exist. If not set, the checked out branch will be used instead. | false    |         |
+| Input                    | Description                                                                                                                                 | Required | Default              |
+|--------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|----------|----------------------|
+| `helm_charts_repository` | The name of the helm chart repository.                                                                                                      | true     |                      |
+| `helm_charts_branch`     | The branch to checkout.                                                                                                                     | true     |                      |
+| `service_name`           | The parent service name.                                                                                                                    | true     |                      |
+| `subchart_name`          | The name of the subchart to update.                                                                                                         | true     |                      |
+| `application_version`    | The new application version.                                                                                                                | true     |                      |
+| `feature_branch`         | The name of the feature branch to update. Creates the branch if it does not exist. If not set, the checked out branch will be used instead. | false    |                      |
+| `github_bot_username`    | The bot username to use for commits made by this workflow.                                                                                  | false    | `github-actions-bot` |
 
 #### Secrets
 
-| Input        | Description                                                                     | Required | Default |
-|--------------|---------------------------------------------------------------------------------|----------|---------|
-| `gh_token`   | The github token from the calling repository.                                   | true     |         |
+| Input                     | Description                                                                                           | Required | Default |
+|---------------------------|-------------------------------------------------------------------------------------------------------|----------|---------|
+| `gh_token`                | The github token from the calling repository.                                                         | true     |         |
+| `github_app_id`           | The ID of the GitHub App to use for release commits - e.g. updating semantic version, creating a tag. | false    |         |
+| `github_app_private_key`  | The private key of the GitHub App to use for release commits.                                         | false    |         |
+| `github_app_organisation` | The organisation in which the GitHub App has been installed.                                          | false    |         |
 
 ## Reusable actions - [`.github/actions`](.github/actions)
 Individual reusable actions for common tasks.

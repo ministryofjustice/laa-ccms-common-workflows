@@ -21,9 +21,19 @@ on:
       feature_branch:
         required: false
         type: string
+      github_bot_username:
+        required: false
+        type: string
+        default: github-actions-bot
     secrets:
       gh_token:
         required: true
+      github_app_id:
+        required: false
+      github_app_private_key:
+        required: false
+      github_app_organisation:
+        required: false
 
 permissions:
   contents: read
@@ -31,21 +41,42 @@ permissions:
 jobs:
   update-helm-chart:
     runs-on: ubuntu-latest
+
+    env:
+      GITHUB_TOKEN: ${{ secrets.gh_token }}
+      GITHUB_APP_ID: ${{ secrets.github_app_id }}
+      GITHUB_APP_PRIVATE_KEY: ${{ secrets.github_app_private_key }}
+
     steps:
+      - name: Get app token
+        if: ${{ env.GITHUB_APP_ID != '' && env.GITHUB_APP_PRIVATE_KEY != '' }}
+        id: get_workflow_token
+        uses: peter-murray/workflow-application-token-action@v4
+        with:
+          application_id: ${{ secrets.github_app_id }}
+          application_private_key: ${{ secrets.github_app_private_key }}
+          organization: ${{ secrets.github_app_organisation }}
       - name: Checkout charts repo
         uses: actions/checkout@v4
         with:
           repository: ministryofjustice/${{ inputs.helm_charts_repository }}
           ref: ${{ inputs.helm_charts_branch }}
           path: ${{ inputs.helm_charts_repository }}
-          token: ${{ secrets.gh_token }}
+          token: ${{ steps.get_workflow_token.outputs.token || env.GITHUB_TOKEN }}
       - name: Update helm chart
         env:
           FEATURE_BRANCH: ${{ inputs.feature_branch }}
+          GITHUB_TOKEN: ${{ steps.get_workflow_token.outputs.token || env.GITHUB_TOKEN }}
         working-directory: ${{ inputs.helm_charts_repository }}
         run: |
-          git config --global user.email "github@justice.gov.uk"
-          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "${{ inputs.github_bot_username }}[bot]@users.noreply.github.com"
+          git config --global user.name "${{ inputs.github_bot_username }}[bot]"
+
+          if [ -z "${{ steps.get_workflow_token.outputs.token }}" ]; then
+            echo "GitHub App token will not be used for this run."
+          else
+            echo "GitHub App token will be used for this run."
+          fi
 
           if [[ -n "$FEATURE_BRANCH" ]]; then
             git fetch origin
