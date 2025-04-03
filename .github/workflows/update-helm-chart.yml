@@ -66,6 +66,7 @@ jobs:
       - name: Update helm chart
         env:
           FEATURE_BRANCH: ${{ inputs.feature_branch }}
+          GITHUB_TOKEN: ${{ steps.get_workflow_token.outputs.token || env.GITHUB_TOKEN }}
         working-directory: ${{ inputs.helm_charts_repository }}
         run: |
           git config --global user.email "${{ inputs.github_bot_username }}[bot]@users.noreply.github.com"
@@ -75,7 +76,6 @@ jobs:
             echo "GitHub App token will not be used for this run."
           else
             echo "GitHub App token will be used for this run."
-            git remote set-url origin https://x-access-token:${{ steps.get_workflow_token.outputs.token }}@github.com/ministryofjustice/${{ inputs.helm_charts_repository }}.git
           fi
 
           if [[ -n "$FEATURE_BRANCH" ]]; then
