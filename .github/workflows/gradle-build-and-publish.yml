@@ -83,6 +83,8 @@ on:
         required: false
       github_app_organisation:
         required: false
+      github_app_repositories:
+        required: false
     outputs:
       published_artifact_version:
         description: "The version of the published artifact."
@@ -114,6 +116,15 @@ jobs:
           application_id: ${{ secrets.github_app_id }}
           application_private_key: ${{ secrets.github_app_private_key }}
           organization: ${{ secrets.github_app_organisation }}
+#      - name: Get app token
+#        uses: actions/create-github-app-token@v1
+#        if: ${{ env.GITHUB_APP_ID != '' && env.GITHUB_APP_PRIVATE_KEY != '' }}
+#        id: get_app_token
+#        with:
+#          app-id: ${{ secrets.github_app_id }}
+#          private-key: ${{ secrets.github_app_private_key }}
+#          owner: ${{ secrets.github_app_organisation }}
+#          repositories: ${{ secrets.github_app_repositories }}
       - uses: actions/checkout@v4
         if: ${{ inputs.create_tag != 'true' }}
       - uses: actions/checkout@v4
@@ -132,6 +143,8 @@ jobs:
 
       - name: Gradle ${{ inputs.build_command }}
         run: ./gradlew ${{ inputs.build_command }} ${{ inputs.build_args }}
+        env:
+          GITHUB_TOKEN: ${{ steps.get_workflow_token.outputs.token || env.GITHUB_TOKEN }}
 
       - name: Test coverage verification
         if: ${{ inputs.jacoco_coverage_report == 'true' }}
