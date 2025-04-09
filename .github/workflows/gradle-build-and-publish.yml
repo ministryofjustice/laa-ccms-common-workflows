@@ -109,29 +109,21 @@ jobs:
 
     steps:
       - name: Get app token
+        uses: actions/create-github-app-token@v2
         if: ${{ env.GITHUB_APP_ID != '' && env.GITHUB_APP_PRIVATE_KEY != '' }}
-        id: get_workflow_token
-        uses: peter-murray/workflow-application-token-action@v4
+        id: get_app_token
         with:
-          application_id: ${{ secrets.github_app_id }}
-          application_private_key: ${{ secrets.github_app_private_key }}
-          organization: ${{ secrets.github_app_organisation }}
-#      - name: Get app token
-#        uses: actions/create-github-app-token@v1
-#        if: ${{ env.GITHUB_APP_ID != '' && env.GITHUB_APP_PRIVATE_KEY != '' }}
-#        id: get_app_token
-#        with:
-#          app-id: ${{ secrets.github_app_id }}
-#          private-key: ${{ secrets.github_app_private_key }}
-#          owner: ${{ secrets.github_app_organisation }}
-#          repositories: ${{ secrets.github_app_repositories }}
+          app-id: ${{ secrets.github_app_id }}
+          private-key: ${{ secrets.github_app_private_key }}
+          owner: ${{ secrets.github_app_organisation }}
+          repositories: ${{ secrets.github_app_repositories }}
       - uses: actions/checkout@v4
         if: ${{ inputs.create_tag != 'true' }}
       - uses: actions/checkout@v4
         if: ${{ inputs.create_tag == 'true' }}
         with:
           ref: main
-          token: ${{ steps.get_workflow_token.outputs.token || env.GITHUB_TOKEN }}
+          token: ${{ steps.get_app_token.outputs.token || env.GITHUB_TOKEN }}
       - name: Set up JDK ${{ inputs.java_version }}
         uses: actions/setup-java@v4
         with:
@@ -144,7 +136,7 @@ jobs:
       - name: Gradle ${{ inputs.build_command }}
         run: ./gradlew ${{ inputs.build_command }} ${{ inputs.build_args }}
         env:
-          GITHUB_TOKEN: ${{ steps.get_workflow_token.outputs.token || env.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.get_app_token.outputs.token || env.GITHUB_TOKEN }}
 
       - name: Test coverage verification
         if: ${{ inputs.jacoco_coverage_report == 'true' }}
@@ -172,7 +164,7 @@ jobs:
       - name: Create tag
         if: ${{ inputs.create_tag == 'true' }}
         run: |
-          if [ -z "${{ steps.get_workflow_token.outputs.token }}" ]; then
+          if [ -z "${{ steps.get_app_token.outputs.token }}" ]; then
             echo "GitHub App token will not be used for this run."
           else
             echo "GitHub App token will be used for this run."
@@ -181,7 +173,7 @@ jobs:
           git config --global user.name "${{ inputs.github_bot_username }}[bot]"
           ./gradlew release -Prelease.useAutomaticVersion=true
         env:
-          GITHUB_TOKEN: ${{ steps.get_workflow_token.outputs.token || env.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.get_app_token.outputs.token || env.GITHUB_TOKEN }}
 
       - name: Capture published version
         id: capture_published_version
