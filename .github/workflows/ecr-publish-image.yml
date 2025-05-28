@@ -25,14 +25,14 @@ on:
         required: false
         type: string
         default: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
-      image_scan_db_update:
+      image_scan_skip_db_update:
         required: false
         type: string
-        default: true
-      image_scan_java_db_update:
+        default: false
+      image_scan_skip_java_db_update:
         required: false
         type: string
-        default: true
+        default: false
       publish:
         required: false
         type: string
@@ -110,8 +110,8 @@ jobs:
           vuln-type: 'os,library'
           severity: ${{ inputs.image_scan_severity }}
         env:
-          TRIVY_SKIP_DB_UPDATE: ${{ inputs.image_scan_db_update }}
-          TRIVY_SKIP_JAVA_DB_UPDATE: ${{ inputs.image_scan_java_db_update }}
+          TRIVY_SKIP_DB_UPDATE: ${{ inputs.image_scan_skip_db_update }}
+          TRIVY_SKIP_JAVA_DB_UPDATE: ${{ inputs.image_scan_skip_java_db_update }}
 
       - name: Publish image
         if: ${{ inputs.publish == 'true' }}
