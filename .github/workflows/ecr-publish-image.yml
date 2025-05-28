@@ -17,7 +17,23 @@ on:
       jar_subproject:
         required: false
         type: string
-      scan_image:
+      image_scan:
+        required: false
+        type: string
+        default: true
+      image_scan_severity:
+        required: false
+        type: string
+        default: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
+      image_scan_db_update:
+        required: false
+        type: string
+        default: true
+      image_scan_java_db_update:
+        required: false
+        type: string
+        default: true
+      publish:
         required: false
         type: string
         default: true
@@ -84,7 +100,7 @@ jobs:
           echo "Image built with version: $image_name"
 
       - name: Scan image
-        if: ${{ inputs.scan_image == 'true' }}
+        if: ${{ inputs.image_scan == 'true' }}
         uses: aquasecurity/trivy-action@0.30.0
         with:
           image-ref: ${{ steps.build-image.outputs.image_name }}
@@ -92,9 +108,13 @@ jobs:
           exit-code: '1'
           ignore-unfixed: true
           vuln-type: 'os,library'
-          severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
+          severity: ${{ inputs.image_scan_severity }}
+        env:
+          TRIVY_SKIP_DB_UPDATE: ${{ inputs.image_scan_db_update }}
+          TRIVY_SKIP_JAVA_DB_UPDATE: ${{ inputs.image_scan_java_db_update }}
 
       - name: Publish image
+        if: ${{ inputs.publish == 'true' }}
         id: publish-image
         run: |
           docker push ${{ steps.build-image.outputs.image_name }}
