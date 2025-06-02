@@ -110,12 +110,17 @@ jobs:
 
 #### Inputs
 
-| Input               | Description                                                | Required | Default   |
-|---------------------|------------------------------------------------------------|----------|-----------|
-| `java_version`      | The Java JDK version to run build commands with.           | false    | `21`      |
-| `java_distribution` | The Java JDK distribution.                                 | false    | `temurin` |
-| `image_version`     | The image version to be published.                         | true     |           |
-| `jar_subproject`    | The gradle subproject to run the `bootBuildImage` task in. | false    |           |
+| Input                            | Description                                                  | Required | Default                              |
+|----------------------------------|--------------------------------------------------------------|----------|--------------------------------------|
+| `java_version`                   | The Java JDK version to run build commands with.             | false    | `21`                                 |
+| `java_distribution`              | The Java JDK distribution.                                   | false    | `temurin`                            |
+| `image_version`                  | The image version to be published.                           | true     |                                      |
+| `jar_subproject`                 | The gradle subproject to run the `bootBuildImage` task in.   | false    |                                      |
+| `image_scan`                     | Whether to scan the built image (via Trivy).                 | false    | `true`                               |
+| `image_scan_severity`            | The severity levels to include in the image scan report.     | false    | `'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'` |
+| `image_scan_skip_db_update `     | Whether to update the database for image scanning.           | false    | `true`                               |
+| `image_scan_skip_java_db_update` | Whether to skip the java database update for image scanning. | false    | `true`                               |
+| `publish`                        | Whether to publish the image. Disable for scanning only.     | false    | `true`                               |
 
 #### Secrets
 

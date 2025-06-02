@@ -17,6 +17,26 @@ on:
       jar_subproject:
         required: false
         type: string
+      image_scan:
+        required: false
+        type: string
+        default: true
+      image_scan_severity:
+        required: false
+        type: string
+        default: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
+      image_scan_skip_db_update:
+        required: false
+        type: string
+        default: false
+      image_scan_skip_java_db_update:
+        required: false
+        type: string
+        default: false
+      publish:
+        required: false
+        type: string
+        default: true
     secrets:
       gh_token:
         required: true
@@ -43,7 +63,7 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.gh_token }}
 
     outputs:
-      published_image_version: ${{ steps.build-and-publish-image.outputs.published_image_version }}
+      published_image_version: ${{ steps.publish-image.outputs.published_image_version }}
 
     steps:
       - uses: actions/checkout@v4
@@ -66,8 +86,8 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build and publish image
-        id: build-and-publish-image
+      - name: Build image
+        id: build-image
         run: |
           gradle_subproject=''
           if [[ -n "${{ inputs.jar_subproject }}" ]]; then
@@ -76,7 +96,28 @@ jobs:
           image_name=${{ steps.login-ecr.outputs.registry }}/${{ secrets.ecr_repository }}:${{ inputs.image_version }}
           ./gradlew ${gradle_subproject}bootBuildImage \
             --imageName $image_name
-          docker push $image_name
+          echo "image_name=$image_name" >> $GITHUB_OUTPUT
+          echo "Image built with version: $image_name"
+
+      - name: Scan image
+        if: ${{ inputs.image_scan == 'true' }}
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          image-ref: ${{ steps.build-image.outputs.image_name }}
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: ${{ inputs.image_scan_severity }}
+        env:
+          TRIVY_SKIP_DB_UPDATE: ${{ inputs.image_scan_skip_db_update }}
+          TRIVY_SKIP_JAVA_DB_UPDATE: ${{ inputs.image_scan_skip_java_db_update }}
+
+      - name: Publish image
+        if: ${{ inputs.publish == 'true' }}
+        id: publish-image
+        run: |
+          docker push ${{ steps.build-image.outputs.image_name }}
           echo "published_image_version=${{ inputs.image_version }}" >> $GITHUB_OUTPUT
           echo "Image published to ECR with version: \`${{ inputs.image_version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "Published image version: ${{ inputs.image_version }}"
