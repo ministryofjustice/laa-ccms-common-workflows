@@ -186,7 +186,6 @@ jobs:
             echo "Current artifact version: \`${VERSION}\`" >> $GITHUB_STEP_SUMMARY
             echo "Current artifact version: $VERSION"
           fi
-          echo "Artifact published with version: \`${VERSION}\`" >> $GITHUB_STEP_SUMMARY
           echo "Published artifact version: $VERSION"
 
       - name: Upload test results
