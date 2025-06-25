@@ -90,12 +90,20 @@ jobs:
 
       - name: Build image
         id: build-image
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: ${{ secrets.ecr_repository }}
         run: |
           gradle_subproject=''
+          if [ "${{ inputs.publish }}" != "true" ]; then
+            # Set placeholder values when not publishing
+            REGISTRY=registry
+            REPOSITORY=repository
+          else
           if [[ -n "${{ inputs.jar_subproject }}" ]]; then
             gradle_subproject=":${{ inputs.jar_subproject }}:"
           fi
-          image_name=${{ steps.login-ecr.outputs.registry }}/${{ secrets.ecr_repository }}:${{ inputs.image_version }}
+          image_name=${REGISTRY}/${REPOSITORY}:${{ inputs.image_version }}
           ./gradlew ${gradle_subproject}bootBuildImage \
             --imageName $image_name
           echo "image_name=$image_name" >> $GITHUB_OUTPUT

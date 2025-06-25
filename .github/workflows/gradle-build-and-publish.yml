@@ -183,14 +183,13 @@ jobs:
             VERSION=$(grep "version=" gradle.properties | cut -d'=' -f2)
           fi
           echo "published_artifact_version=${VERSION}" >> $GITHUB_OUTPUT
-          if [[ -n "${{ inputs.publish_package }}" ]]; then
+          if [ "${{ inputs.publish_package }}" = "true" ]; then
             echo "Artifact published with version: \`${VERSION}\`" >> $GITHUB_STEP_SUMMARY
             echo "Published artifact version: $VERSION"
           else
             echo "Current artifact version: \`${VERSION}\`" >> $GITHUB_STEP_SUMMARY
             echo "Current artifact version: $VERSION"
           fi
-          echo "Published artifact version: $VERSION"
 
       - name: Upload test results
         if: ${{ inputs.junit_results == 'true' }}
