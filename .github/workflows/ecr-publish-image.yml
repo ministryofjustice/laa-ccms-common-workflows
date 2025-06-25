@@ -74,12 +74,14 @@ jobs:
           distribution: ${{ inputs.java_distribution }}
 
       - name: Configure aws credentials
+        if: ${{ inputs.publish == 'true' }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.ecr_role_to_assume }}
           aws-region: ${{ secrets.ecr_region }}
 
       - name: Login ecr
+        if: ${{ inputs.publish == 'true' }}
         uses: aws-actions/amazon-ecr-login@v2
         id: login-ecr
 
