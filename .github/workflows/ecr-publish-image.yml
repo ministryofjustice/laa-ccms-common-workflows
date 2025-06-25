@@ -99,7 +99,7 @@ jobs:
             # Set placeholder values when not publishing
             REGISTRY=registry
             REPOSITORY=repository
-          else
+          fi
           if [[ -n "${{ inputs.jar_subproject }}" ]]; then
             gradle_subproject=":${{ inputs.jar_subproject }}:"
           fi
