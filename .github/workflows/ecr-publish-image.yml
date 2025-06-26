@@ -111,7 +111,7 @@ jobs:
 
       - name: Scan image
         if: ${{ inputs.image_scan == 'true' }}
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@0.31.0
         with:
           image-ref: ${{ steps.build-image.outputs.image_name }}
           format: 'table'
