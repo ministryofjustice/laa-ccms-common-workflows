@@ -118,9 +118,9 @@ jobs:
           application_id: ${{ secrets.github_app_id }}
           application_private_key: ${{ secrets.github_app_private_key }}
           organization: ${{ secrets.github_app_organisation }}
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: ${{ inputs.create_tag != 'true' }}
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: ${{ inputs.create_tag == 'true' }}
         with:
           ref: ${{ inputs.override_tagged_branch }}
