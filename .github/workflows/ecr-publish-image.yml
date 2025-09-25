@@ -93,7 +93,7 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
         with:
           registries: ${{ secrets.ecr_registry }}
-        id: login-ecr
+        id: login-another-ecr
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -101,7 +101,7 @@ jobs:
       - name: Build image
         id: build-image
         env:
-          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REGISTRY: ${{ steps.login-ecr.outputs.registry || steps.login-another-ecr.outputs.registry }}
           REPOSITORY: ${{ secrets.ecr_repository }}
         run: |
           gradle_subproject=''
