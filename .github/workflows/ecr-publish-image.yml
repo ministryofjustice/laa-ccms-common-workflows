@@ -63,6 +63,7 @@ jobs:
 
     env:
       GITHUB_TOKEN: ${{ secrets.gh_token }}
+      ECR_REGISTRY: ${{ secrets.ecr_registry }}
 
     outputs:
       published_image_version: ${{ steps.publish-image.outputs.published_image_version }}
@@ -83,12 +84,12 @@ jobs:
           aws-region: ${{ secrets.ecr_region }}
 
       - name: Login ecr
-        if: ${{ inputs.publish == 'true' && secrets.ecr_registry == '' }}
+        if: ${{ inputs.publish == 'true' && env.ECR_REGISTRY == '' }}
         uses: aws-actions/amazon-ecr-login@v2
         id: login-ecr
 
       - name: Login ecr in different registry
-        if: ${{ inputs.publish == 'true' && secrets.ecr_registry != '' }}
+        if: ${{ inputs.publish == 'true' && env.ECR_REGISTRY != '' }}
         uses: aws-actions/amazon-ecr-login@v2
         with:
           registries: ${{ secrets.ecr_registry }}
