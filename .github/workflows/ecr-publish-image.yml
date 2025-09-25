@@ -46,6 +46,8 @@ on:
         required: true
       ecr_role_to_assume:
         required: true
+      ecr_registry:
+        required: false
     outputs:
       published_image_version:
         description: "The version of the published image."
@@ -81,8 +83,15 @@ jobs:
           aws-region: ${{ secrets.ecr_region }}
 
       - name: Login ecr
-        if: ${{ inputs.publish == 'true' }}
+        if: ${{ inputs.publish == 'true' && secrets.ecr_registry == '' }}
         uses: aws-actions/amazon-ecr-login@v2
+        id: login-ecr
+
+      - name: Login ecr in different registry
+        if: ${{ inputs.publish == 'true' && secrets.ecr_registry != '' }}
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registries: ${{ secrets.ecr_registry }}
         id: login-ecr
 
       - name: Setup Gradle
