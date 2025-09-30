@@ -48,7 +48,7 @@ on:
         required: true
       ecr_registry:
         required: false
-      truststore_certficate:
+      truststore_certificate:
         required: false
       truststore_password:
         required: false
