@@ -102,7 +102,7 @@ jobs:
       - name: Generate certificate truststore
         if: @{{ secrets.truststore_certificate != '' }}
         run: |
-          echo ${{ secrets.truststore_certificate }} > cert.pem
+          echo "${{ secrets.truststore_certificate }}" > cert.pem
           keytool -importcert -alias cert -file cert.pem -keystore truststore.jks -storepass ${{ secrets.truststore_password }} -noprompt
 
       - name: Setup Gradle
