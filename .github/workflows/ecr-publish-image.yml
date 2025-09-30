@@ -68,6 +68,7 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.gh_token }}
       ECR_REGISTRY: ${{ secrets.ecr_registry }}
+      TRUSTSTORE_CERTIFICATE: ${{ secrets.truststore_certificate }}
 
     outputs:
       published_image_version: ${{ steps.publish-image.outputs.published_image_version }}
@@ -100,7 +101,7 @@ jobs:
         id: login-another-ecr
 
       - name: Generate certificate truststore
-        if: ${{ secrets.truststore_certificate != '' }}
+        if: ${{ env.TRUSTSTORE_CERTIFICATE != '' }}
         run: |
           echo "${{ secrets.truststore_certificate }}" > cert.pem
           keytool -importcert -alias cert -file cert.pem -keystore truststore.jks -storepass ${{ secrets.truststore_password }} -noprompt
