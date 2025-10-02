@@ -48,11 +48,9 @@ on:
         required: true
       ecr_registry:
         required: false
-      truststore_certificate:
+      root_certificate:
         required: false
-      truststore_password:
-        required: false
-      truststore_directory:
+      binding_directory:
         required: false
     outputs:
       published_image_version:
@@ -70,8 +68,7 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.gh_token }}
       ECR_REGISTRY: ${{ secrets.ecr_registry }}
-      TRUSTSTORE_CERTIFICATE: ${{ secrets.truststore_certificate }}
-      TRUSTSTORE_PASSWORD: ${{ secrets.truststore_password }}
+      ROOT_CERTIFICATE: ${{ secrets.root_certificate }}
 
     outputs:
       published_image_version: ${{ steps.publish-image.outputs.published_image_version }}
@@ -103,19 +100,18 @@ jobs:
           registries: ${{ secrets.ecr_registry }}
         id: login-another-ecr
 
-      - name: Generate certificate truststore
-        if: ${{ env.TRUSTSTORE_CERTIFICATE != '' }}
+      - name: Configure certificate binding
+        if: ${{ env.ROOT_CERTIFICATE != '' }}
         run: |
-          if [ -z "${{ secrets.truststore_password }}" ]; then
-            echo "A truststore password is required."
+          if [ -z "${{ secrets.binding_directory }}" ]; then
+            echo "A binding directory is required."
             exit 1
           fi
-          if [ -z "${{ secrets.truststore_directory }}" ]; then
-            echo "A truststore directory is required."
-            exit 1
-          fi
-          echo "${{ secrets.truststore_certificate }}" > cert.pem
-          keytool -importcert -alias cert -file cert.pem -keystore ${{ secrets.truststore_directory }}/truststore.jks -storepass ${{ secrets.truststore_password }} -noprompt
+          mkdir -p ${{ secrets.binding_directory }}
+          echo "${{ secrets.root_certificate }}" > ${{ secrets.binding_directory }}/root_cert.pem
+          echo "ca-certificates" > ${{ secrets.binding_directory }}/type
+          echo "created certificate binding"
+          tree ${{ secrets.binding_directory }}
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
