@@ -125,12 +125,15 @@ jobs:
 
 #### Secrets
 
-| Input                | Description                                   | Required | Default |
-|----------------------|-----------------------------------------------|----------|---------|
-| `gh_token`           | The github token from the calling repository. | true     |         |
-| `ecr_region`         | The ECR region to publish to.                 | true     |         |
-| `ecr_repository`     | The name of the ECR repository to publish to. | true     |         |
-| `ecr_role_to_assume` | The AWS role to assume to connect to ECR.     | true     |         |
+| Input                | Description                                                                                                                       | Required | Default |
+|----------------------|-----------------------------------------------------------------------------------------------------------------------------------|----------|---------|
+| `gh_token`           | The github token from the calling repository.                                                                                     | true     |         |
+| `ecr_region`         | The ECR region to publish to.                                                                                                     | true     |         |
+| `ecr_repository`     | The name of the ECR repository to publish to.                                                                                     | true     |         |
+| `ecr_role_to_assume` | The AWS role to assume to connect to ECR.                                                                                         | true     |         |
+| `ecr_registry`       | The ECR registry to publish to, if in a different account to the role.                                                            | false    |         |
+| `root_certificate`   | The root certificate to embed into the image. This will be added to the JVM Truststore.                                           | false    |         |
+| `binding_directory`  | The directory used for binding the root certificate. See [Paketo Bindings](https://paketo.io/docs/howto/configuration/#bindings). | false    |         |
 
 #### Outputs
 
