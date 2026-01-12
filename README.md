@@ -377,3 +377,52 @@ Output: `result: example-feature`
 | Output   | Description                                         |
 |----------|-----------------------------------------------------|
 | `result` | The resulting string with the given prefix removed. |
+
+### PACT test and publish
+
+Workflow: [`pact-and-publish.yml`](.github/workflows/pact-and-publish.yml)
+
+Runs Pact tests using Gradle and optionally publishes the generated pacts to a Pact Broker.
+
+#### Pre-requisites
+
+- Java / Gradle repository
+- Pact tests configured in the project
+- (Optional) Access to a Pact Broker if publishing results
+
+#### Example usage
+
+```yaml
+jobs:
+  pact-tests:
+    uses: ministryofjustice/laa-ccms-common-workflows/.github/workflows/pact-and-publish.yml@v1
+    permissions:
+      contents: write
+      packages: write
+    with:
+      pact_test_task: 'pactTest'
+      publish_pact_results: 'true'
+    secrets:
+      gh_token: ${{ secrets.GITHUB_TOKEN }}
+      pact_broker_url: ${{ secrets.PACT_BROKER_URL }}
+      pact_broker_username: ${{ secrets.PACT_BROKER_USERNAME }}
+      pact_broker_password: ${{ secrets.PACT_BROKER_PASSWORD }}
+```
+
+#### Inputs
+
+| Input                  | Description                                            | Required | Default   |
+|------------------------|--------------------------------------------------------|----------|-----------|
+| `java_version`         | The Java JDK version to run build commands with.       | false    | `21`      |
+| `java_distribution`    | The Java JDK distribution.                             | false    | `temurin` |
+| `pact_test_task`       | The name of the gradle task to run Pact tests.         | false    |           |
+| `publish_pact_results` | Whether to publish pact results to the broker.         | false    | `false`   |
+
+#### Secrets
+
+| Input                  | Description                                            | Required | Default |
+|------------------------|--------------------------------------------------------|----------|---------|
+| `gh_token`             | The github token from the calling repository.          | true     |         |
+| `pact_broker_url`      | The URL of the Pact Broker.                            | false    |         |
+| `pact_broker_username` | The username for the Pact Broker.                      | false    |         |
+| `pact_broker_password` | The password for the Pact Broker.                      | false    |         |
