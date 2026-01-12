@@ -112,8 +112,10 @@ jobs:
       - name: Run Semgrep scan
         run: semgrep scan --exclude-rule python.django.security.django-no-csrf-token.django-no-csrf-token --error --config auto
 
+
   build-and-publish:
     needs: semgrep-scan
+    if: ${{ always() && (inputs.semgrep_check != 'true' || (needs.semgrep-scan.result != 'failure' && needs.semgrep-scan.result != 'cancelled')) }}
     runs-on: ubuntu-latest
 
     env:
