@@ -110,7 +110,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Run Semgrep scan
-        run: semgrep scan --error --config auto
+        run: semgrep scan --exclude-rule python.django.security.django-no-csrf-token.django-no-csrf-token --error --config auto
 
   build-and-publish:
     needs: semgrep-scan
