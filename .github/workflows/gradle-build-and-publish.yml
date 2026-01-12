@@ -3,6 +3,10 @@ name: Gradle build and publish
 on:
   workflow_call:
     inputs:
+      semgrep_check:
+        required: false
+        type: string
+        default: true
       java_version:
         required: false
         type: string
@@ -97,7 +101,19 @@ permissions:
   packages: write
 
 jobs:
+  semgrep-scan:
+    if: ${{ inputs.semgrep_check == 'true' }}
+    name: Security scan
+    runs-on: ubuntu-latest
+    container:
+      image: returntocorp/semgrep
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run Semgrep
+        run: semgrep scan --error --config auto
+
   build-and-publish:
+    needs: semgrep-scan
     runs-on: ubuntu-latest
 
     env:
