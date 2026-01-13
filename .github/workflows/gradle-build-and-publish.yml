@@ -76,6 +76,10 @@ on:
         required: false
         type: string
         default: github-actions-bot
+      semgrep_check:
+        required: false
+        type: string
+        default: false
     secrets:
       gh_token:
         required: true
@@ -97,7 +101,21 @@ permissions:
   packages: write
 
 jobs:
+  semgrep-scan:
+    if: ${{ inputs.semgrep_check == 'true' }}
+    name: semgrep-security-scan
+    runs-on: ubuntu-latest
+    container:
+      image: returntocorp/semgrep
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run Semgrep scan
+        run: semgrep scan --exclude-rule python.django.security.django-no-csrf-token.django-no-csrf-token --error --config auto
+
+
   build-and-publish:
+    needs: semgrep-scan
+    if: ${{ always() && (inputs.semgrep_check != 'true' || (needs.semgrep-scan.result != 'failure' && needs.semgrep-scan.result != 'cancelled')) }}
     runs-on: ubuntu-latest
 
     env:

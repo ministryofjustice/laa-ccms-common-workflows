@@ -3,22 +3,26 @@
 A library of commonly used GitHub actions and workflows used within LAA CCMS
 
 ## Reusable workflows - [`.github/workflows`](.github/workflows)
+
 Complete workflows that may consist of several other reusable workflows and actions.
 
 ### Gradle build & publish
 
 Workflow: [`gradle-build-and-publish.yml`](.github/workflows/gradle-build-and-publish.yml)
 
-Runs a gradle build (or chosen build task), an optional integration test task and either creates a new tag or publishes an artifact.
+Runs a gradle build (or chosen build task), an optional integration test task and either creates a
+new tag or publishes an artifact.
 
 It is assumed that `build` includes unit tests.
 
-When using `create_tag`, it is advised to create a new workflow that is triggered by new tags to carry out post-tag tasks, such as image publishing and deployment.
+When using `create_tag`, it is advised to create a new workflow that is triggered by new tags to
+carry out post-tag tasks, such as image publishing and deployment.
 
 #### Pre-requisites
 
 - Java / Gradle repository
-- [Java or SpringBoot Plugin](https://github.com/ministryofjustice/laa-ccms-spring-boot-common) enabled
+- [Java or SpringBoot Plugin](https://github.com/ministryofjustice/laa-ccms-spring-boot-common)
+  enabled
 - [Gradle Release Plugin](https://github.com/researchgate/gradle-release) (included in the above).
 
 #### Example usage
@@ -64,6 +68,7 @@ jobs:
 | `jacoco_coverage_report`      | Whether jacoco coverage is enabled for this project, and a report artifact should be produced.                                                                          | false    | `true`                     |
 | `jacoco_coverage_report_path` | The path of the jacoco report to upload.                                                                                                                                | false    | `build/reports/jacoco`     |
 | `github_bot_username`         | The bot username to use for commits made by this workflow.                                                                                                              | false    | `github-actions-bot`       |
+| `semgrep_check`               | Whether semgrep checking is enabled for this project. If enabled, runs before the main build run.                                                                       | false    | `false`                    |
 
 #### Secrets
 
@@ -85,12 +90,14 @@ jobs:
 
 Worflow: [`ecr-publish-image.yml`](.github/workflows/ecr-publish-image.yml)
 
-Generates a boot image for a SpringBoot application (via `bootBuildImage`) and pushes the image to the given AWS ECR repository.
+Generates a boot image for a SpringBoot application (via `bootBuildImage`) and pushes the image to
+the given AWS ECR repository.
 
 #### Pre-requisites
 
 - Java / Gradle project
-- [SpringBoot Plugin (for `buildBootImage`)](https://github.com/ministryofjustice/laa-ccms-spring-boot-common) enabled
+- [SpringBoot Plugin (for
+  `buildBootImage`)](https://github.com/ministryofjustice/laa-ccms-spring-boot-common) enabled
 
 ```yaml
 jobs:
@@ -145,7 +152,8 @@ jobs:
 
 Worflow: [`snyk-vulnerability-scan.yml`](.github/workflows/snyk-vulnerability-scan.yml)
 
-Identifies __new__ vulnerabilities that have been introduced against a target reference project that exists in Snyk.
+Identifies __new__ vulnerabilities that have been introduced against a target reference project that
+exists in Snyk.
 
 Also runs a `snyk code test` to identify code security issues (Static Application Security Testing).
 
@@ -153,7 +161,8 @@ Also runs a `snyk code test` to identify code security issues (Static Applicatio
 
 - Snyk compatible repository
 - A published Snyk project to use as a target reference
-- A secret named `SNYK_TOKEN` added to the calling repository secrets, containing a Snyk access token.
+- A secret named `SNYK_TOKEN` added to the calling repository secrets, containing a Snyk access
+  token.
 
 #### Example usage
 
@@ -174,13 +183,13 @@ jobs:
 
 #### Inputs
 
-| Input                   | Description                                                                                                                                                                                             | Required   | Default            |
-|-------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|--------------------|
-| `java_version`          | The Java JDK version to run build commands with.                                                                                                                                                        | false      | `21`               |
-| `java_distribution`     | The Java JDK distribution.                                                                                                                                                                              | false      | `temurin`          |
-| `snyk_organisation`     | Which Snyk organisation to use. See [`--org`](https://docs.snyk.io/snyk-cli/commands/test#org-less-than-org_id-greater-than).                                                                           | false      | `legal-aid-agency` |
-| `snyk_test_exclude`     | Which files / directories to exclude from Snyk testing. See [`--exclude`](https://docs.snyk.io/snyk-cli/commands/test#exclude-less-than-name-greater-than-less-than-name-greater-than-...greater-than). | false      |                    |
-| `snyk_target_reference` | The target reference to use for Snyk testing. See [`--target-reference`](https://docs.snyk.io/snyk-cli/commands/test#target-reference-less-than-target_reference-greater-than).                         | false      |                    |
+| Input                   | Description                                                                                                                                                                                             | Required | Default            |
+|-------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|--------------------|
+| `java_version`          | The Java JDK version to run build commands with.                                                                                                                                                        | false    | `21`               |
+| `java_distribution`     | The Java JDK distribution.                                                                                                                                                                              | false    | `temurin`          |
+| `snyk_organisation`     | Which Snyk organisation to use. See [`--org`](https://docs.snyk.io/snyk-cli/commands/test#org-less-than-org_id-greater-than).                                                                           | false    | `legal-aid-agency` |
+| `snyk_test_exclude`     | Which files / directories to exclude from Snyk testing. See [`--exclude`](https://docs.snyk.io/snyk-cli/commands/test#exclude-less-than-name-greater-than-less-than-name-greater-than-...greater-than). | false    |                    |
+| `snyk_target_reference` | The target reference to use for Snyk testing. See [`--target-reference`](https://docs.snyk.io/snyk-cli/commands/test#target-reference-less-than-target_reference-greater-than).                         | false    |                    |
 
 #### Secrets
 
@@ -193,14 +202,16 @@ jobs:
 
 Worflow: [`snyk-vulnerability-report.yml`](.github/workflows/snyk-vulnerability-report.yml)
 
-Publishes a project vulnerability report to the given Snyk organisation dashboard, via `snyk monitor`.
+Publishes a project vulnerability report to the given Snyk organisation dashboard, via
+`snyk monitor`.
 
 Optionally produces a sarif report and publishes to Github Code Scanning.
 
 #### Pre-requisites
 
 - Snyk compatible repository
-- A secret named `SNYK_TOKEN` added to the calling repository secrets, containing a Snyk access token.
+- A secret named `SNYK_TOKEN` added to the calling repository secrets, containing a Snyk access
+  token.
 
 #### Example usage
 
@@ -223,14 +234,14 @@ jobs:
 
 #### Inputs
 
-| Input                         | Description                                                                                                                                                                                             | Required   | Default            |
-|-------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|--------------------|
-| `java_version`                | The Java JDK version to run build commands with.                                                                                                                                                        | false      | `21`               |
-| `java_distribution`           | The Java JDK distribution.                                                                                                                                                                              | false      | `temurin`          |
-| `snyk_organisation`           | Which Snyk organisation to use. See [`--org`](https://docs.snyk.io/snyk-cli/commands/test#org-less-than-org_id-greater-than).                                                                           | false      | `legal-aid-agency` |
-| `snyk_test_exclude`           | Which files / directories to exclude from Snyk testing. See [`--exclude`](https://docs.snyk.io/snyk-cli/commands/test#exclude-less-than-name-greater-than-less-than-name-greater-than-...greater-than). | false      |                    |
-| `snyk_target_reference`       | The target reference to use for Snyk testing. See [`--target-reference`](https://docs.snyk.io/snyk-cli/commands/test#target-reference-less-than-target_reference-greater-than).                         | false      |                    |
-| `github_code_scanning_report` | Whether to generate and upload a sarif report to [Github Code Scanning](https://docs.github.com/en/code-security/code-scanning/integrating-with-code-scanning/uploading-a-sarif-file-to-github).        | false      | `false`            |
+| Input                         | Description                                                                                                                                                                                             | Required | Default            |
+|-------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|--------------------|
+| `java_version`                | The Java JDK version to run build commands with.                                                                                                                                                        | false    | `21`               |
+| `java_distribution`           | The Java JDK distribution.                                                                                                                                                                              | false    | `temurin`          |
+| `snyk_organisation`           | Which Snyk organisation to use. See [`--org`](https://docs.snyk.io/snyk-cli/commands/test#org-less-than-org_id-greater-than).                                                                           | false    | `legal-aid-agency` |
+| `snyk_test_exclude`           | Which files / directories to exclude from Snyk testing. See [`--exclude`](https://docs.snyk.io/snyk-cli/commands/test#exclude-less-than-name-greater-than-less-than-name-greater-than-...greater-than). | false    |                    |
+| `snyk_target_reference`       | The target reference to use for Snyk testing. See [`--target-reference`](https://docs.snyk.io/snyk-cli/commands/test#target-reference-less-than-target_reference-greater-than).                         | false    |                    |
+| `github_code_scanning_report` | Whether to generate and upload a sarif report to [Github Code Scanning](https://docs.github.com/en/code-security/code-scanning/integrating-with-code-scanning/uploading-a-sarif-file-to-github).        | false    | `false`            |
 
 #### Secrets
 
@@ -264,7 +275,8 @@ jobs:
 ```
 
 > [!Important]
-> A PAT token will likely be required over the generated GITHUB_TOKEN here if your helm chart repository is private.
+> A PAT token will likely be required over the generated GITHUB_TOKEN here if your helm chart
+> repository is private.
 
 #### Inputs
 
@@ -288,6 +300,7 @@ jobs:
 | `github_app_organisation` | The organisation in which the GitHub App has been installed.                                          | false    |         |
 
 ## Reusable actions - [`.github/actions`](.github/actions)
+
 Individual reusable actions for common tasks.
 
 ### Define Snyk arguments
@@ -354,10 +367,10 @@ Output: `result: example-feature`
 
 #### Inputs
 
-| Input                   | Description                               | Required | Default |
-|-------------------------|-------------------------------------------|----------|---------|
-| `string`                | The string to process.                    | true     |         |
-| `prefix`                | The prefix to be removed from the string. | true     |         |
+| Input    | Description                               | Required | Default |
+|----------|-------------------------------------------|----------|---------|
+| `string` | The string to process.                    | true     |         |
+| `prefix` | The prefix to be removed from the string. | true     |         |
 
 #### Outputs
 
