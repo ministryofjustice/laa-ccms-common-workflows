@@ -17,6 +17,13 @@ on:
       provider_name:
         required: true
         type: string
+      consumer_name:
+        required: true
+        type: string
+      consumer_branch:
+        required: true
+        type: string
+
     secrets:
       gh_token:
         required: true
@@ -33,7 +40,7 @@ permissions:
 
 jobs:
 
-  pact-test-and-publish:
+  pact-test-and-publish-verification:
     if: ${{ inputs.pact_test_task != '' && github.actor != 'dependabot[bot]' }}
     name: Pact tests
     runs-on: ubuntu-latest
@@ -69,29 +76,20 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Get latest commit SHA
+        id: get_sha
+        run: |
+          LATEST_SHA=$(git rev-parse origin/main)
+          echo "Latest SHA on main is $LATEST_SHA"
+          echo "sha=$LATEST_SHA" >> $GITHUB_OUTPUT
+
       - name: Run pact test
         id: run_pacts
         env:
           PACT_PUBLISH: true
           PACT_BROKER_USERNAME: ${{ secrets.PACT_BROKER_USERNAME }}
           PACT_BROKER_PASSWORD: ${{ secrets.PACT_BROKER_PASSWORD }}
+          PACT_CONSUMER_NAME: ${{ inputs.consumer_name }}
+          PACT_CONSUMER_BRANCH: ${{ inputs.consumer_branch }}
+          CI_COMMIT_SHA: ${{ steps.get_sha.outputs.sha }}
         run: ./gradlew ${{ inputs.pact_test_task }}
-
-      - name: Can I merge?
-        if: ${{ github.event_name == 'pull_request' }}
-        run: |
-          docker run --rm \
-            -e PACT_BROKER_BASE_URL=${{ secrets.PACT_BROKER_URL }} \
-            -e PACT_BROKER_USERNAME=${{ secrets.PACT_BROKER_USERNAME }} \
-            -e PACT_BROKER_PASSWORD=${{ secrets.PACT_BROKER_PASSWORD }} \
-            pactfoundation/pact-cli:latest \
-            pact-broker can-i-deploy \
-            --pacticipant ${{ inputs.provider_name }} \
-            --branch ${{ github.ref_name }}
-
-      - name: Publish failed results
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: gradle-problems-report
-          path: build/reports/problems/

@@ -380,7 +380,7 @@ Output: `result: example-feature`
 
 ### PACT test and publish
 
-Workflow: [`pact-and-publish.yml`](.github/workflows/pact-and-publish.yml)
+Workflow: [`pact-and-publish.yml`](.github/workflows/pact-and-publish-old.yml)
 
 Runs Pact tests using Gradle and optionally publishes the generated pacts to a Pact Broker.
 
@@ -395,7 +395,7 @@ Runs Pact tests using Gradle and optionally publishes the generated pacts to a P
 ```yaml
 jobs:
   pact-tests:
-    uses: ministryofjustice/laa-ccms-common-workflows/.github/workflows/pact-and-publish.yml@v1
+    uses: ministryofjustice/laa-ccms-common-workflows/.github/workflows/pact-and-publish-old.yml@v1
     permissions:
       contents: write
       packages: write

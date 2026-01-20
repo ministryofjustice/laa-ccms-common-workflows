@@ -14,7 +14,24 @@ on:
       pact_test_task:
         required: false
         type: string
+      pacticipant_name:
+        required: true
+        type: string
+      consumer_name:
+        required: false
+        type: string # Leave blank for testing all consumers
+      version:
+        description: 'The version (SHA) of the pacticipant'
+        required: false
+        type: string
+        default: ${{ github.sha }}
       publish_pact_results:
+        description: 'Publish pact test results to Pact Broker (Consumer only)'
+        required: false
+        type: string
+        default: 'false'
+      is_provider:
+        description: 'Is this a provider?'
         required: false
         type: string
         default: 'false'
@@ -33,6 +50,7 @@ permissions:
   packages: write
 
 jobs:
+
   pact-test-and-publish:
     if: ${{ inputs.pact_test_task != '' && github.actor != 'dependabot[bot]' }}
     name: Pact tests
@@ -40,11 +58,13 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.gh_token }}
       GIT_SHA: ${{ github.sha }}
-      GIT_BRANCH: ${{ github.ref_name }}
       PACT_BROKER_URL: ${{ secrets.pact_broker_url }}
       PACT_BROKER_USERNAME: ${{ secrets.pact_broker_username }}
       PACT_BROKER_PASSWORD: ${{ secrets.pact_broker_password }}
     steps:
+      - name: Set branch name
+        run: echo "GIT_BRANCH=${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}" >> $GITHUB_ENV
+
       - name: Get app token
         if: ${{ env.GITHUB_APP_ID != '' && env.GITHUB_APP_PRIVATE_KEY != '' }}
         id: get_workflow_token
@@ -70,15 +90,31 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Run pact test
-        run: ./gradlew ${{ inputs.pact_test_task }} 
-        
+        id: run_pacts
+        env:
+          PACT_BROKER_USERNAME: ${{ secrets.PACT_BROKER_USERNAME }}
+          PACT_BROKER_PASSWORD: ${{ secrets.PACT_BROKER_PASSWORD }}
+          PACT_CONSUMER_NAME: ${{ inputs.consumer_name }}
+        run: ./gradlew ${{ inputs.pact_test_task }}
+
+      - name: Print branch environment name
+        run: echo ${{ env.GIT_BRANCH }}
+
       - name: Publish pact test results
         if: ${{ inputs.publish_pact_results == 'true' }}
         run: ./gradlew pactPublish --info
 
-      - name: Publish failed results
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: gradle-problems-report
-          path: build/reports/problems/
+      - name: Record version
+        if: ${{ inputs.is_provider == 'true' }}
+        id: record_version
+        shell: bash
+        run: |
+          docker run --rm \
+            -e PACT_BROKER_BASE_URL=${{ secrets.PACT_BROKER_URL }} \
+            -e PACT_BROKER_USERNAME=${{ secrets.PACT_BROKER_USERNAME }} \
+            -e PACT_BROKER_PASSWORD=${{ secrets.PACT_BROKER_PASSWORD }} \
+            pactfoundation/pact-cli:latest \
+            broker create-or-update-version \
+            --pacticipant ${{ inputs.pacticipant_name }} \
+            --version ${{ inputs.version }} 
+          
