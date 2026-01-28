@@ -36,7 +36,7 @@ runs:
         pactfoundation/pact-cli:latest \
         broker create-environment --name ${{ inputs.environment }} || true
     - name: Pact Can I Deploy?
-      if: ${{ inputs.run_can_i_deploy == 'true' }}
+      if: ${{ inputs.run_can_i_deploy == true }}
       shell: bash
       run: |
         docker run --rm \

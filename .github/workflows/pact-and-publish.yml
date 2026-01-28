@@ -20,6 +20,9 @@ on:
       consumer_name:
         required: false
         type: string # Leave blank for testing all consumers
+      provider_name:
+        required: false
+        type: string
       version:
         description: 'The version (SHA) of the pacticipant'
         required: false
@@ -28,13 +31,19 @@ on:
       publish_pact_results:
         description: 'Publish pact test results to Pact Broker (Consumer only)'
         required: false
-        type: string
-        default: 'false'
+        type: boolean
+        default: false
       is_provider:
         description: 'Is this a provider?'
         required: false
-        type: string
-        default: 'false'
+        type: boolean
+        default: false
+      enable_can_i_merge:
+        description: 'Enable Can I Merge?'
+        required: false
+        type: boolean
+        default: false
+
     secrets:
       gh_token:
         required: true
@@ -101,11 +110,22 @@ jobs:
         run: echo ${{ env.GIT_BRANCH }}
 
       - name: Publish pact test results
-        if: ${{ inputs.publish_pact_results == 'true' }}
+        if: ${{ inputs.publish_pact_results == true }}
         run: ./gradlew pactPublish --info
 
+      - name: Can I merge?
+        if: ${{ inputs.enable_can_i_merge == true }}
+        uses: ministryofjustice/laa-ccms-common-workflows/.github/actions/pact-can-i-merge@story/pact-publish
+        with:
+          pact_broker_password: ${{ secrets.PACT_BROKER_PASSWORD }}
+          pact_broker_url: ${{ secrets.PACT_BROKER_URL }}
+          pact_broker_username: ${{ secrets.PACT_BROKER_USERNAME }}
+          pacticipant: ${{ inputs.pacticipant_name }}
+          is_provider: ${{ inputs.is_provider }}
+          provider_name: ${{ inputs.provider_name }}
+
       - name: Record version
-        if: ${{ inputs.is_provider == 'true' }}
+        if: ${{ inputs.is_provider == true }}
         id: record_version
         shell: bash
         run: |
@@ -116,5 +136,6 @@ jobs:
             pactfoundation/pact-cli:latest \
             broker create-or-update-version \
             --pacticipant ${{ inputs.pacticipant_name }} \
-            --version ${{ inputs.version }} 
+            --version ${{ inputs.version }} \
+            --branch ${{ env.GIT_BRANCH }}
           

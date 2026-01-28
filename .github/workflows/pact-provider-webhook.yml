@@ -52,6 +52,9 @@ jobs:
       PACT_BROKER_USERNAME: ${{ secrets.pact_broker_username }}
       PACT_BROKER_PASSWORD: ${{ secrets.pact_broker_password }}
     steps:
+      - name: Set branch name
+        run: echo "GIT_BRANCH=${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}" >> $GITHUB_ENV
+
       - name: Get app token
         if: ${{ env.GITHUB_APP_ID != '' && env.GITHUB_APP_PRIVATE_KEY != '' }}
         id: get_workflow_token
