@@ -22,6 +22,7 @@ runs:
   using: "composite"
   steps:
     - name: Pact Record Deployment
+      if: ${{ inputs.environment == 'main' || inputs.environment == 'uat' || inputs.environment == 'stg' || inputs.environemnt == 'staging' || inputs.environment == 'prod' || inputs.environment == 'production' }}
       shell: bash
       run: |
         docker run --rm \
@@ -33,3 +34,7 @@ runs:
           --pacticipant ${{ inputs.pacticipant }} \
           --version ${{ inputs.version }} \
           --environment ${{ inputs.environment }}
+    - name: Pact Record Deployment (No Environment)
+      if: ${{ inputs.environment != 'main' && inputs.environment != 'uat' && inputs.environment != 'stg' && inputs.environment != 'staging' && inputs.environment != 'prod' && inputs.environment != 'production' }}
+      shell: bash
+      run: echo "No deployment to record to keep Pact Broker clean"
