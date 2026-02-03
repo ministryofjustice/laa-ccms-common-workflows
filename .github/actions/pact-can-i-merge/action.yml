@@ -23,36 +23,33 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Disabled Can I Merge
+    - name: Can I Merge Provider?
+      if: ${{ inputs.is_provider == 'true' }}
       shell: bash
-      run: echo "Can I Merge is disabled"
-    #- name: Can I Merge Provider?
-    #  if: ${{ inputs.is_provider == 'true' }}
-    #  shell: bash
-    #  run: |
-    #    docker run --rm \
-    #      -e PACT_BROKER_BASE_URL=${{ inputs.pact_broker_url }} \
-    #      -e PACT_BROKER_USERNAME=${{ inputs.pact_broker_username }} \
-    #      -e PACT_BROKER_PASSWORD=${{ inputs.pact_broker_password }} \
-    #      pactfoundation/pact-cli:latest \
-    #      broker can-i-deploy \
-    #      --pacticipant ${{ inputs.pacticipant }} \
-    #      --version ${{ inputs.version }} \
-    #      --retry-while-unknown 30 \
-    #      --retry-interval 10
-    #- name: Can I Merge Consumer?
-    #  if: ${{ inputs.is_provider == 'false' }}
-    #  shell: bash
-    #  run: |
-    #    docker run --rm \
-    #      -e PACT_BROKER_BASE_URL=${{ inputs.pact_broker_url }} \
-    #      -e PACT_BROKER_USERNAME=${{ inputs.pact_broker_username }} \
-    #      -e PACT_BROKER_PASSWORD=${{ inputs.pact_broker_password }} \
-    #      pactfoundation/pact-cli:latest \
-    #      broker can-i-deploy \
-    #      --pacticipant ${{ inputs.pacticipant }} \
-    #      --version ${{ inputs.version }} \
-    #      --pacticipant ${{ inputs.provider_name }} \
-    #      --branch main \
-    #      --retry-while-unknown 30 \
-    #      --retry-interval 10
+      run: |
+        docker run --rm \
+          -e PACT_BROKER_BASE_URL=${{ inputs.pact_broker_url }} \
+          -e PACT_BROKER_USERNAME=${{ inputs.pact_broker_username }} \
+          -e PACT_BROKER_PASSWORD=${{ inputs.pact_broker_password }} \
+          pactfoundation/pact-cli:latest \
+          broker can-i-deploy \
+          --pacticipant ${{ inputs.pacticipant }} \
+          --version ${{ inputs.version }} \
+          --retry-while-unknown 30 \
+          --retry-interval 10
+    - name: Can I Merge Consumer?
+      if: ${{ inputs.is_provider == 'false' }}
+      shell: bash
+      run: |
+        docker run --rm \
+          -e PACT_BROKER_BASE_URL=${{ inputs.pact_broker_url }} \
+          -e PACT_BROKER_USERNAME=${{ inputs.pact_broker_username }} \
+          -e PACT_BROKER_PASSWORD=${{ inputs.pact_broker_password }} \
+          pactfoundation/pact-cli:latest \
+          broker can-i-deploy \
+          --pacticipant ${{ inputs.pacticipant }} \
+          --version ${{ inputs.version }} \
+          --pacticipant ${{ inputs.provider_name }} \
+          --branch main \
+          --retry-while-unknown 30 \
+          --retry-interval 10
