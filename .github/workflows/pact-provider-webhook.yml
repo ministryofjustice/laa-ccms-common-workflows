@@ -20,6 +20,10 @@ on:
       consumer_branch:
         required: true
         type: string
+        # For removal, references still in other projects
+      provider_name:
+        required: false
+        type: string
 
     secrets:
       gh_token:
