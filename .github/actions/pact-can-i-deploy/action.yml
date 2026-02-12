@@ -1,4 +1,4 @@
-name: 'Pact Can I Deploy Step'
+name: 'Pact Can I Merge Step'
 description: 'Runs pact-broker can-i-deploy as a step'
 inputs:
   pacticipant:

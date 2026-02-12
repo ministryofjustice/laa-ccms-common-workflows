@@ -5,19 +5,19 @@ A library of commonly used GitHub actions and workflows used within LAA CCMS
 ## Table of Contents
 
 - [Reusable workflows](#reusable-workflows---githubworkflows)
-  - [Gradle build & publish](#gradle-build--publish)
-  - [Publish image to ECR](#publish-image-to-ecr)
-  - [Snyk vulnerability scan](#snyk-vulnerability-scan)
-  - [Snyk vulnerability report](#snyk-vulnerability-report)
-  - [Update helm chart](#update-helm-chart)
-  - [Pact and Publish](#pact-and-publish)
-  - [Pact Provider Webhook](#pact-provider-webhook)
+    - [Gradle build & publish](#gradle-build--publish)
+    - [Publish image to ECR](#publish-image-to-ecr)
+    - [Snyk vulnerability scan](#snyk-vulnerability-scan)
+    - [Snyk vulnerability report](#snyk-vulnerability-report)
+    - [Update helm chart](#update-helm-chart)
+    - [Pact and Publish](#pact-and-publish)
+    - [Pact Provider Webhook](#pact-provider-webhook)
 - [Reusable actions](#reusable-actions---githubactions)
-  - [Define Snyk arguments](#define-snyk-arguments)
-  - [Remove prefix](#remove-prefix)
-  - [Pact Can I Merge](#pact-can-i-merge)
-  - [Pact Can I Deploy](#pact-can-i-deploy)
-  - [Pact Record Deployment](#pact-record-deployment)
+    - [Define Snyk arguments](#define-snyk-arguments)
+    - [Remove prefix](#remove-prefix)
+    - [Pact Can I Merge](#pact-can-i-merge)
+    - [Pact Can I Deploy](#pact-can-i-deploy)
+    - [Pact Record Deployment](#pact-record-deployment)
 
 ## Reusable workflows - [`.github/workflows`](.github/workflows)
 
@@ -381,6 +381,15 @@ Workflow: [`pact-provider-webhook.yml`](.github/workflows/pact-provider-webhook.
 Workflow defined with the intent of being triggered by a webhook via workflow dispatch. Runs
 provider
 tests against a specific consumer and it's branch.
+
+You can see how this is setup via the Pact Broker repository
+[laa-data-pact-broker](https://github.com/ministryofjustice/laa-data-pact-broker/tree/main/seed).
+Webhooks are defined in `.json` files within this repo, which should point to your repositories
+workflow file which you wish to trigger following PACT publish (or similar) event.
+The `.json` file is then uploaded to the Pact Broker in its own workflow when a PR is merged to
+`main` which uses the `create-webhooks.sh` script recreated the webhooks on the newly deployed
+Pact Broker instance. This script will need updating to include any
+future webhook definitions.
 
 #### Pre-requisites
 
