@@ -115,7 +115,7 @@ jobs:
 
       - name: Can I merge?
         if: ${{ inputs.enable_can_i_merge == true }}
-        uses: ministryofjustice/laa-ccms-common-workflows/.github/actions/pact-can-i-merge@v1.0.11
+        uses: ministryofjustice/laa-ccms-common-workflows/.github/actions/pact-can-i-merge@story/pact-publish
         with:
           pact_broker_password: ${{ secrets.PACT_BROKER_PASSWORD }}
           pact_broker_url: ${{ secrets.PACT_BROKER_URL }}
