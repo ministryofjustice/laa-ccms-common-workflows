@@ -1,0 +1,99 @@
+name: PACT test and publish
+
+on:
+  workflow_call:
+    inputs:
+      java_version:
+        required: false
+        type: string
+        default: 21
+      java_distribution:
+        required: false
+        type: string
+        default: temurin
+      pact_test_task:
+        required: true
+        type: string
+      consumer_name:
+        required: true
+        type: string
+      consumer_branch:
+        required: true
+        type: string
+        # For removal, references still in other projects
+      provider_name:
+        required: false
+        type: string
+
+    secrets:
+      gh_token:
+        required: true
+      pact_broker_url:
+        required: false
+      pact_broker_username:
+        required: false
+      pact_broker_password:
+        required: false
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+
+  pact-test-and-publish-verification:
+    if: ${{ github.actor != 'dependabot[bot]' }}
+    name: Pact tests
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.gh_token }}
+      GIT_SHA: ${{ github.sha }}
+      GIT_BRANCH: ${{ github.ref_name }}
+      PACT_BROKER_URL: ${{ secrets.pact_broker_url }}
+      PACT_BROKER_USERNAME: ${{ secrets.pact_broker_username }}
+      PACT_BROKER_PASSWORD: ${{ secrets.pact_broker_password }}
+    steps:
+      - name: Set branch name
+        run: echo "GIT_BRANCH=${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}" >> $GITHUB_ENV
+
+      - name: Get app token
+        if: ${{ env.GITHUB_APP_ID != '' && env.GITHUB_APP_PRIVATE_KEY != '' }}
+        id: get_workflow_token
+        uses: peter-murray/workflow-application-token-action@v4
+        with:
+          application_id: ${{ secrets.github_app_id }}
+          application_private_key: ${{ secrets.github_app_private_key }}
+          organization: ${{ secrets.github_app_organisation }}
+      - uses: actions/checkout@v5
+        if: ${{ inputs.create_tag != 'true' }}
+      - uses: actions/checkout@v5
+        if: ${{ inputs.create_tag == 'true' }}
+        with:
+          ref: ${{ inputs.override_tagged_branch }}
+          token: ${{ steps.get_workflow_token.outputs.token || env.GITHUB_TOKEN }}
+      - name: Set up JDK ${{ inputs.java_version }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ inputs.java_version }}
+          distribution: ${{ inputs.java_distribution }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Get latest commit SHA
+        id: get_sha
+        run: |
+          LATEST_SHA=$(git rev-parse origin/main)
+          echo "Latest SHA on main is $LATEST_SHA"
+          echo "sha=$LATEST_SHA" >> $GITHUB_OUTPUT
+
+      - name: Run pact test
+        id: run_pacts
+        env:
+          PACT_PUBLISH: true
+          PACT_BROKER_USERNAME: ${{ secrets.PACT_BROKER_USERNAME }}
+          PACT_BROKER_PASSWORD: ${{ secrets.PACT_BROKER_PASSWORD }}
+          PACT_CONSUMER_NAME: ${{ inputs.consumer_name }}
+          PACT_CONSUMER_BRANCH: ${{ inputs.consumer_branch }}
+          CI_COMMIT_SHA: ${{ steps.get_sha.outputs.sha }}
+        run: ./gradlew ${{ inputs.pact_test_task }}

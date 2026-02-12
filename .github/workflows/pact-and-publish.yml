@@ -1,0 +1,141 @@
+name: PACT test and publish
+
+on:
+  workflow_call:
+    inputs:
+      java_version:
+        required: false
+        type: string
+        default: 21
+      java_distribution:
+        required: false
+        type: string
+        default: temurin
+      pact_test_task:
+        required: true
+        type: string
+      pacticipant_name:
+        required: true
+        type: string
+      consumer_name:
+        required: false
+        type: string # Leave blank for testing all consumers
+      provider_name:
+        required: false
+        type: string
+      version:
+        description: 'The version (SHA) of the pacticipant'
+        required: false
+        type: string
+        default: ${{ github.sha }}
+      publish_pact_results:
+        description: 'Publish pact test results to Pact Broker (Consumer only)'
+        required: false
+        type: boolean
+        default: false
+      is_provider:
+        description: 'Is this a provider?'
+        required: false
+        type: boolean
+        default: false
+      enable_can_i_merge:
+        description: 'Enable Can I Merge?'
+        required: false
+        type: boolean
+        default: false
+
+    secrets:
+      gh_token:
+        required: true
+      pact_broker_url:
+        required: false
+      pact_broker_username:
+        required: false
+      pact_broker_password:
+        required: false
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+
+  pact-test-and-publish:
+    if: ${{ github.actor != 'dependabot[bot]' }}
+    name: Pact tests
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.gh_token }}
+      GIT_SHA: ${{ github.sha }}
+      PACT_BROKER_URL: ${{ secrets.pact_broker_url }}
+      PACT_BROKER_USERNAME: ${{ secrets.pact_broker_username }}
+      PACT_BROKER_PASSWORD: ${{ secrets.pact_broker_password }}
+    steps:
+      - name: Set branch name
+        run: echo "GIT_BRANCH=${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}" >> $GITHUB_ENV
+
+      - name: Get app token
+        if: ${{ env.GITHUB_APP_ID != '' && env.GITHUB_APP_PRIVATE_KEY != '' }}
+        id: get_workflow_token
+        uses: peter-murray/workflow-application-token-action@v4
+        with:
+          application_id: ${{ secrets.github_app_id }}
+          application_private_key: ${{ secrets.github_app_private_key }}
+          organization: ${{ secrets.github_app_organisation }}
+      - uses: actions/checkout@v5
+        if: ${{ inputs.create_tag != 'true' }}
+      - uses: actions/checkout@v5
+        if: ${{ inputs.create_tag == 'true' }}
+        with:
+          ref: ${{ inputs.override_tagged_branch }}
+          token: ${{ steps.get_workflow_token.outputs.token || env.GITHUB_TOKEN }}
+      - name: Set up JDK ${{ inputs.java_version }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ inputs.java_version }}
+          distribution: ${{ inputs.java_distribution }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run pact test
+        id: run_pacts
+        env:
+          PACT_BROKER_USERNAME: ${{ secrets.PACT_BROKER_USERNAME }}
+          PACT_BROKER_PASSWORD: ${{ secrets.PACT_BROKER_PASSWORD }}
+          PACT_CONSUMER_NAME: ${{ inputs.consumer_name }}
+        run: ./gradlew ${{ inputs.pact_test_task }}
+
+      - name: Print branch environment name
+        run: echo ${{ env.GIT_BRANCH }}
+
+      - name: Publish pact test results
+        if: ${{ inputs.publish_pact_results == true }}
+        run: ./gradlew pactPublish --info
+
+      - name: Can I merge?
+        if: ${{ inputs.enable_can_i_merge == true }}
+        uses: ministryofjustice/laa-ccms-common-workflows/.github/actions/pact-can-i-merge@v1.0.11
+        with:
+          pact_broker_password: ${{ secrets.PACT_BROKER_PASSWORD }}
+          pact_broker_url: ${{ secrets.PACT_BROKER_URL }}
+          pact_broker_username: ${{ secrets.PACT_BROKER_USERNAME }}
+          pacticipant: ${{ inputs.pacticipant_name }}
+          is_provider: ${{ inputs.is_provider }}
+          provider_name: ${{ inputs.provider_name }}
+
+      - name: Record version
+        if: ${{ inputs.is_provider == true }}
+        id: record_version
+        shell: bash
+        run: |
+          docker run --rm \
+            -e PACT_BROKER_BASE_URL=${{ secrets.PACT_BROKER_URL }} \
+            -e PACT_BROKER_USERNAME=${{ secrets.PACT_BROKER_USERNAME }} \
+            -e PACT_BROKER_PASSWORD=${{ secrets.PACT_BROKER_PASSWORD }} \
+            pactfoundation/pact-cli:latest \
+            broker create-or-update-version \
+            --pacticipant ${{ inputs.pacticipant_name }} \
+            --version ${{ inputs.version }} \
+            --branch ${{ env.GIT_BRANCH }}
+          

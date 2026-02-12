@@ -2,6 +2,23 @@
 
 A library of commonly used GitHub actions and workflows used within LAA CCMS
 
+## Table of Contents
+
+- [Reusable workflows](#reusable-workflows---githubworkflows)
+    - [Gradle build & publish](#gradle-build--publish)
+    - [Publish image to ECR](#publish-image-to-ecr)
+    - [Snyk vulnerability scan](#snyk-vulnerability-scan)
+    - [Snyk vulnerability report](#snyk-vulnerability-report)
+    - [Update helm chart](#update-helm-chart)
+    - [Pact and Publish](#pact-and-publish)
+    - [Pact Provider Webhook](#pact-provider-webhook)
+- [Reusable actions](#reusable-actions---githubactions)
+    - [Define Snyk arguments](#define-snyk-arguments)
+    - [Remove prefix](#remove-prefix)
+    - [Pact Can I Merge](#pact-can-i-merge)
+    - [Pact Can I Deploy](#pact-can-i-deploy)
+    - [Pact Record Deployment](#pact-record-deployment)
+
 ## Reusable workflows - [`.github/workflows`](.github/workflows)
 
 Complete workflows that may consist of several other reusable workflows and actions.
@@ -299,6 +316,135 @@ jobs:
 | `github_app_private_key`  | The private key of the GitHub App to use for release commits.                                         | false    |         |
 | `github_app_organisation` | The organisation in which the GitHub App has been installed.                                          | false    |         |
 
+### Pact and Publish
+
+Workflow: [`pact-and-publish.yml`](.github/workflows/pact-and-publish.yml)
+
+Runs the Pact tests within a given project, and publishes the results to the given Pact Broker. This
+can be used by either a provider, or consumer
+
+#### Pre-requisites
+
+- Pact Broker server to publish results to
+- A username & password for the Pact Broker server
+
+#### Example usage
+
+```yaml
+jobs:
+  pact-test:
+    uses: ministryofjustice/laa-ccms-common-workflows/.github/workflows/pact-and-publish.yml@v1
+    permissions:
+      contents: write
+      packages: write
+    with:
+      pact_test_task: ":exampleService:pactTest"
+      pacticipant_name: 'example-provider-service-name'
+      is_provider: true
+      enable_can_i_merge: true
+    secrets:
+      gh_token: ${{ secrets.GITHUB_TOKEN }}
+      pact_broker_url: ${{ secrets.PACT_BROKER_URL }}
+      pact_broker_username: ${{ secrets.PACT_BROKER_USERNAME }}
+      pact_broker_password: ${{ secrets.PACT_BROKER_PASSWORD }}
+
+```
+
+#### Inputs
+
+| Input                  | Description                                                                                                     | Required | Default    |
+|------------------------|-----------------------------------------------------------------------------------------------------------------|----------|------------|
+| `java_version`         | The Java JDK version to run build commands with.                                                                | false    | `21`       |
+| `java_distribution`    | The Java JDK distribution.                                                                                      | false    | `temurin`  |
+| `pact_test_task`       | The gradle task to run the pact tests.                                                                          | true     |            |
+| `pacticipant_name`     | The name of the pacticipant according to Pact Broker.                                                           | true     |            |
+| `consumer_name`        | Filter by specific consumer (leave empty to test against all consumers) - for provider tests only.              | false    |            |
+| `provider_name`        | The provider name to check if the PR can safely merge into `main` - for consumer tests only.                    | false    |            |
+| `version`              | The version of the pacticipant. Should always be Commit SHA unless you are testing something.                   | false    | Commit SHA |
+| `publish_pact_results` | If the PACT result should be published to Pact Broker - for consumer tests only.                                | false    | false      |
+| `is_provider`          | Defines if the pacticipant using the workflow is a provider or not.                                             | false    | false      |
+| `enable_can_i_merge`   | Enables the 'can-i-merge' step to see if a PR can safely be merged. Requires the `provider_name` to be set also | false    | false      |
+
+#### Secrets
+
+| Input                  | Description                                                        | Required | 
+|------------------------|--------------------------------------------------------------------|----------|
+| `gh_token`             | The github token from the calling repository.                      | true     |         
+| `pact_broker_url`      | The Pact Broker URL you want to test against or publish to.        | false    |         
+| `pact_broker_username` | The Pact Broker username. Required if you wish to publish results. | false    |         
+| `pact_broker_password` | The Pact Broker password. Required if you wish to publish results. | false    |         
+
+### PACT Provider Webhook
+
+Workflow: [`pact-provider-webhook.yml`](.github/workflows/pact-provider-webhook.yml)
+
+Workflow defined with the intent of being triggered by a webhook via workflow dispatch. Runs
+provider
+tests against a specific consumer and it's branch.
+
+You can see how this is setup via the Pact Broker repository
+[laa-data-pact-broker](https://github.com/ministryofjustice/laa-data-pact-broker/tree/main/seed).
+Webhooks are defined in `.json` files within this repo, which should point to your repositories
+workflow file which you wish to trigger following PACT publish (or similar) event.
+The `.json` file is then uploaded to the Pact Broker in its own workflow when a PR is merged to
+`main` which uses the `create-webhooks.sh` script recreated the webhooks on the newly deployed
+Pact Broker instance. This script will need updating to include any
+future webhook definitions.
+
+#### Pre-requisites
+
+- Pact Broker server to publish results to.
+- A webhook setup within the Pact Broker server via its
+  repository [laa-data-pact-broker](https://github.com/ministryofjustice/laa-data-pact-broker) which
+  is triggered by the defined provider name.
+
+#### Example usage
+
+```yaml
+on:
+  workflow_dispatch:
+    inputs:
+      consumer: { required: true, description: "Consumer name (e.g., laa-microservice)" }
+      consumerBranch: { required: true, description: "Consumer branch (e.g., main)" }
+
+jobs:
+  pact-test:
+    uses: ministryofjustice/laa-ccms-common-workflows/.github/workflows/pact-provider-webhook.yml@v1
+    permissions:
+      contents: write
+      packages: write
+    with:
+      pact_test_task: ":claims-data:service:pactTest"
+      provider_name: 'laa-data-claims-api'
+      consumer_name: ${{ github.event.inputs.consumer }}
+      consumer_branch: ${{ github.event.inputs.consumerBranch }}
+    secrets:
+      gh_token: ${{ secrets.GITHUB_TOKEN }}
+      pact_broker_url: ${{ secrets.PACT_BROKER_URL }}
+      pact_broker_username: ${{ secrets.PACT_BROKER_USERNAME }}
+      pact_broker_password: ${{ secrets.PACT_BROKER_PASSWORD }}
+
+```
+
+#### Inputs
+
+| Input               | Description                                                                                  | Required | Default   |
+|---------------------|----------------------------------------------------------------------------------------------|----------|-----------|
+| `java_version`      | The Java JDK version to run build commands with.                                             | false    | `21`      |
+| `java_distribution` | The Java JDK distribution.                                                                   | false    | `temurin` |
+| `pact_test_task`    | The gradle task to run the pact tests.                                                       | true     |           |
+| `consumer_name`     | The consumer name which triggered the webhook (Pact broker passes this as an event input).   | true     |           |
+| `consumer_branch`   | The consumer branch which triggered the webhook (Pact broker passes this as an event input). | true     |           |
+
+#### Secrets
+
+| Input                  | Description                                                        | Required | 
+|------------------------|--------------------------------------------------------------------|----------|
+| `gh_token`             | The github token from the calling repository.                      | true     |         
+| `pact_broker_url`      | The Pact Broker URL you want to test against or publish to.        | false    |         
+| `pact_broker_username` | The Pact Broker username. Required if you wish to publish results. | false    |         
+| `pact_broker_password` | The Pact Broker password. Required if you wish to publish results. | false    |         
+
 ## Reusable actions - [`.github/actions`](.github/actions)
 
 Individual reusable actions for common tasks.
@@ -377,3 +523,127 @@ Output: `result: example-feature`
 | Output   | Description                                         |
 |----------|-----------------------------------------------------|
 | `result` | The resulting string with the given prefix removed. |
+
+### Pact Can I Merge
+
+Action: [`pact-can-i-merge/action.yml`](.github/actions/pact-can-i-merge/action.yml)
+
+Checks if the open PR can merge into `main` by check if it's compatible with any pacticipants in the
+Pact Broker it depends on which are also in the `main` branch.
+
+#### Example usage
+
+```yaml
+jobs:
+  run-pr-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Can I merge?
+        uses: ministryofjustice/laa-ccms-common-workflows/.github/actions/pact-can-i-merge@v1
+        with:
+          pact_broker_url: ${{ secrets.PACT_BROKER_URL }}
+          pact_broker_password: ${{ secrets.PACT_BROKER_PASSWORD }}
+          pact_broker_username: ${{ secrets.PACT_BROKER_USERNAME }}
+          pacticipant: ${{ inputs.pacticipant_name }}
+          is_provider: ${{ inputs.is_provider }}
+          provider_name: ${{ inputs.provider_name }}
+```
+
+#### Inputs
+
+| Input                  | Description                                                                                   | Required | Default    |
+|------------------------|-----------------------------------------------------------------------------------------------|----------|------------|
+| `pacticipant`          | The name of the pacticipant running this action.                                              | true     |            |
+| `version`              | The version of the pacticipant. Should always be Commit SHA unless you are testing something. | false    | Commit SHA |
+| `pact_broker_url`      | The Pact Broker URL you want to test against or publish to.                                   | true     |            |
+| `pact_broker_username` | The Pact Broker username.                                                                     | true     |            |
+| `pact_broker_password` | The Pact Broker password.                                                                     | true     |            |
+| `is_provider`          | If the workflow repo is a provider.                                                           | false    | false      |
+| `provider_name`        | The provider name to check against. Required if `is_provider` is false.                       | false    | false      |
+
+### Pact Can I Deploy
+
+Action: [`pact-can-i-deploy/action.yml`](.github/actions/pact-can-i-deploy/action.yml)
+
+Checks if the commit can safely be deployed into a named environment. Only runs on environments
+called the following:
+
+- main
+- uat
+- stg
+- staging
+- prod
+- production
+
+#### Example usage
+
+```yaml
+jobs:
+  deploy-to-uat:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Can I deploy?
+        uses: ministryofjustice/laa-ccms-common-workflows/.github/actions/pact-can-i-deploy@v1
+        with:
+          pacticipant: 'service-name'
+          environment: 'uat'
+          pact_broker_url: ${{ secrets.PACT_BROKER_URL }}
+          pact_broker_password: ${{ secrets.PACT_BROKER_PASSWORD }}
+          pact_broker_username: ${{ secrets.PACT_BROKER_USERNAME }}
+          provider_name: ${{ inputs.provider_name }}
+```
+
+#### Inputs
+
+| Input                  | Description                                                                                   | Required | Default    |
+|------------------------|-----------------------------------------------------------------------------------------------|----------|------------|
+| `pacticipant`          | The name of the pacticipant running this action.                                              | true     |            |
+| `environment`          | The environment the pacticipant is being deployed to.                                         | true     |            |
+| `version`              | The version of the pacticipant. Should always be Commit SHA unless you are testing something. | false    | Commit SHA |
+| `pact_broker_url`      | The Pact Broker URL you want to test against or publish to.                                   | true     |            |
+| `pact_broker_username` | The Pact Broker username.                                                                     | true     |            |
+| `pact_broker_password` | The Pact Broker password.                                                                     | true     |            |
+
+### Pact Record Deployment
+
+Action: [`pact-record-deployment/action.yml`](.github/actions/pact-record-deployment/action.yml)
+
+Records the commit SHA (or manually specified version) as a deployment to the given environment.
+Only records against environments called the following:
+
+- main
+- uat
+- stg
+- staging
+- prod
+- production
+
+#### Example usage
+
+```yaml
+jobs:
+  deploy-to-uat:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record UAT deployment to pact broker
+        id: record_uat_deployment
+        uses: ministryofjustice/laa-ccms-common-workflows/.github/actions/pact-record-deployment@v1
+        with:
+          pacticipant: 'laa-data-claims-api'
+          environment: 'uat'
+          pact_broker_url: ${{ secrets.pact_broker_url }}
+          pact_broker_username: ${{ secrets.pact_broker_username }}
+          pact_broker_password: ${{ secrets.pact_broker_password }}
+```
+
+#### Inputs
+
+| Input                  | Description                                                                                   | Required | Default    |
+|------------------------|-----------------------------------------------------------------------------------------------|----------|------------|
+| `pacticipant`          | The name of the pacticipant running this action.                                              | true     |            |
+| `environment`          | The environment the pacticipant version has been deployed to.                                 | true     |            |
+| `version`              | The version of the pacticipant. Should always be Commit SHA unless you are testing something. | false    | Commit SHA |
+| `pact_broker_url`      | The Pact Broker URL you want to test against or publish to.                                   | true     |            |
+| `pact_broker_username` | The Pact Broker username.                                                                     | true     |            |
+| `pact_broker_password` | The Pact Broker password.                                                                     | true     |            |
+

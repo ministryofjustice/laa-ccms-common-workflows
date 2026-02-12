@@ -1,0 +1,40 @@
+name: 'Pact Record Deployment'
+description: 'Runs pact-broker record-deployment as a step'
+inputs:
+  pacticipant:
+    description: 'Pacticipant to record deployment for'
+    required: true
+  environment:
+    description: 'The environment you are deploying to'
+    required: true
+  version:
+    description: 'The version (SHA) of the pacticipant'
+    required: false
+    default: ${{ github.sha }}
+  pact_broker_url:
+    required: true
+  pact_broker_username:
+    required: true
+  pact_broker_password:
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Pact Record Deployment
+      if: ${{ inputs.environment == 'main' || inputs.environment == 'uat' || inputs.environment == 'stg' || inputs.environemnt == 'staging' || inputs.environment == 'prod' || inputs.environment == 'production' }}
+      shell: bash
+      run: |
+        docker run --rm \
+          -e PACT_BROKER_BASE_URL=${{ inputs.pact_broker_url }} \
+          -e PACT_BROKER_USERNAME=${{ inputs.pact_broker_username }} \
+          -e PACT_BROKER_PASSWORD=${{ inputs.pact_broker_password }} \
+          pactfoundation/pact-cli:latest \
+          broker record-deployment \
+          --pacticipant ${{ inputs.pacticipant }} \
+          --version ${{ inputs.version }} \
+          --environment ${{ inputs.environment }}
+    - name: Pact Record Deployment (No Environment)
+      if: ${{ inputs.environment != 'main' && inputs.environment != 'uat' && inputs.environment != 'stg' && inputs.environment != 'staging' && inputs.environment != 'prod' && inputs.environment != 'production' }}
+      shell: bash
+      run: echo "No deployment to record to keep Pact Broker clean"
