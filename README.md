@@ -145,6 +145,7 @@ jobs:
 | `image_scan_severity`            | The severity levels to include in the image scan report.     | false    | `'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'` |
 | `image_scan_skip_db_update `     | Whether to update the database for image scanning.           | false    | `true`                               |
 | `image_scan_skip_java_db_update` | Whether to skip the java database update for image scanning. | false    | `true`                               |
+| `docker_api_version`             | Docker API version used during `bootBuildImage`.             | false    |                                      |
 | `publish`                        | Whether to publish the image. Disable for scanning only.     | false    | `true`                               |
 
 #### Secrets
@@ -646,4 +647,3 @@ jobs:
 | `pact_broker_url`      | The Pact Broker URL you want to test against or publish to.                                   | true     |            |
 | `pact_broker_username` | The Pact Broker username.                                                                     | true     |            |
 | `pact_broker_password` | The Pact Broker password.                                                                     | true     |            |
-

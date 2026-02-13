@@ -33,6 +33,10 @@ on:
         required: false
         type: string
         default: false
+      docker_api_version:
+        required: false
+        type: string
+        default: ''
       publish:
         required: false
         type: string
@@ -121,8 +125,12 @@ jobs:
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry || steps.login-another-ecr.outputs.registry }}
           REPOSITORY: ${{ secrets.ecr_repository }}
+          DOCKER_HOST: unix:///var/run/docker.sock
         run: |
           gradle_subproject=''
+          if [[ -n "${{ inputs.docker_api_version }}" ]]; then
+            export DOCKER_API_VERSION="${{ inputs.docker_api_version }}"
+          fi
           if [ "${{ inputs.publish }}" != "true" ]; then
             # Set placeholder values when not publishing
             REGISTRY=registry
