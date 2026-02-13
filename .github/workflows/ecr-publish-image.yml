@@ -116,6 +116,10 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Cleanup Docker Resources
+        run: |
+          docker system prune -af || true
+
       - name: Build image
         id: build-image
         env:
