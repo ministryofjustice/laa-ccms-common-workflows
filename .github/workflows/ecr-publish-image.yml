@@ -83,7 +83,7 @@ jobs:
 
       - name: Configure aws credentials
         if: ${{ inputs.publish == 'true' }}
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.ecr_role_to_assume }}
           aws-region: ${{ secrets.ecr_region }}
@@ -139,7 +139,7 @@ jobs:
 
       - name: Scan image
         if: ${{ inputs.image_scan == 'true' }}
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@0.34.0
         with:
           image-ref: ${{ steps.build-image.outputs.image_name }}
           format: 'table'
