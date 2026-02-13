@@ -116,10 +116,6 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Pre-pull buildpack builder image
-        run: |
-          docker pull paketobuildpacks/builder:base
-
       - name: Build image
         id: build-image
         env:
@@ -138,8 +134,8 @@ jobs:
           image_name=${REGISTRY}/${REPOSITORY}:${{ inputs.image_version }}
           ./gradlew ${gradle_subproject}bootBuildImage \
             --imageName $image_name \
-            --builder paketobuildpacks/builder:base \
-            -Dspring.boot.build-image.publish=true \
+            --builder paketobuildpacks/gradle:latest \
+            -Dspring.boot.build-image.publish=true
           echo "image_name=$image_name" >> $GITHUB_OUTPUT
           echo "Image built with version: $image_name"
 
