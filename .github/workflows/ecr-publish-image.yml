@@ -116,14 +116,10 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
 
-      - name: Force docker-java API version (temporary workaround for testcontainers)
-        run: |
-          echo "This is a temporary workaround for https://github.com/actions/runner-images/issues/13474"
-          echo "api.version=1.44" > ~/.docker-java.properties
-
       - name: Build image
         id: build-image
         env:
+          DOCKER_API_VERSION: 1.44
           REGISTRY: ${{ steps.login-ecr.outputs.registry || steps.login-another-ecr.outputs.registry }}
           REPOSITORY: ${{ secrets.ecr_repository }}
         run: |
