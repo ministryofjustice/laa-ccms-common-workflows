@@ -137,7 +137,10 @@ jobs:
           fi
           image_name=${REGISTRY}/${REPOSITORY}:${{ inputs.image_version }}
           ./gradlew ${gradle_subproject}bootBuildImage \
-            --imageName $image_name
+            --imageName $image_name \
+            --builder paketobuildpacks/builder:base \
+            --pull-policy always \
+            -Dspring.boot.build-image.publish=true \
           echo "image_name=$image_name" >> $GITHUB_OUTPUT
           echo "Image built with version: $image_name"
 
