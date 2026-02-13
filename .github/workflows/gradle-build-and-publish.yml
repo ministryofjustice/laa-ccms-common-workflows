@@ -159,6 +159,11 @@ jobs:
         if: ${{ inputs.jacoco_coverage_report == 'true' }}
         run: ./gradlew jacocoTestCoverageVerification
 
+      - name: Force docker-java API version (temporary workaround for testcontainers)
+        run: |
+          echo "This is a temporary workaround for https://github.com/testcontainers/testcontainers-java/issues/11212"
+          echo "api.version=1.44" > ~/.docker-java.properties
+
       - name: Integration test
         if: ${{ inputs.integration_test_task != '' }}
         run: ./gradlew ${{ inputs.integration_test_task }}
