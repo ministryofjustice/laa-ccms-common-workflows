@@ -116,6 +116,12 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
 
+      - name: Debug Docker
+        run: |
+          docker version
+          echo DOCKER_HOST=$DOCKER_HOST
+          echo DOCKER_API_VERSION=$DOCKER_API_VERSION
+
       - name: Build image
         id: build-image
         env:
