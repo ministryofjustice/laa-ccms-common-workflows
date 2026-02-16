@@ -141,6 +141,7 @@ jobs:
           if [[ -n "${{ inputs.jar_subproject }}" ]]; then
             gradle_subproject=":${{ inputs.jar_subproject }}:"
           fi
+          ./gradlew --stop
           image_name=${REGISTRY}/${REPOSITORY}:${{ inputs.image_version }}
           ./gradlew ${gradle_subproject}bootBuildImage \
             --builder=paketobuildpacks/builder-jammy-tiny \
