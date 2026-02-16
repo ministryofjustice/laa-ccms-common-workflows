@@ -140,6 +140,7 @@ jobs:
           fi
           image_name=${REGISTRY}/${REPOSITORY}:${{ inputs.image_version }}
           ./gradlew ${gradle_subproject}bootBuildImage \
+            --imageBuilder=paketobuildpacks/builder-jammy-tiny \
             --imageName $image_name
           echo "image_name=$image_name" >> $GITHUB_OUTPUT
           echo "Image built with version: $image_name"
