@@ -128,7 +128,7 @@ jobs:
       - name: Build image
         id: build-image
         env:
-          DOCKER_API_VERSION: 1.44
+          DOCKER_HOST: unix:///var/run/docker.sock
           REGISTRY: ${{ steps.login-ecr.outputs.registry || steps.login-another-ecr.outputs.registry }}
           REPOSITORY: ${{ secrets.ecr_repository }}
         run: |
