@@ -121,6 +121,9 @@ jobs:
           docker version
           echo DOCKER_HOST=$DOCKER_HOST
           echo DOCKER_API_VERSION=$DOCKER_API_VERSION
+      - name: Dump Docker-related env
+        run: |
+          env | grep DOCKER || true
 
       - name: Build image
         id: build-image
