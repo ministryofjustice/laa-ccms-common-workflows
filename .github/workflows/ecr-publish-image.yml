@@ -116,6 +116,10 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
 
+      - name: Force docker-java API version
+        run: |
+          echo "api.version=1.44" > ~/.docker-java.properties
+
       - name: Build image
         id: build-image
         env:
