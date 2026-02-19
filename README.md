@@ -560,6 +560,8 @@ jobs:
 | `pact_broker_password` | The Pact Broker password.                                                                     | true     |            |
 | `is_provider`          | If the workflow repo is a provider.                                                           | false    | false      |
 | `provider_name`        | The provider name to check against. Required if `is_provider` is false.                       | false    | false      |
+| `retry_attempts`       | The total times to retry.                                                                     | false    | 30         |
+| `retry_interval`       | The interval in seconds between retries.                                                      | false    | 20         |
 
 ### Pact Can I Deploy
 

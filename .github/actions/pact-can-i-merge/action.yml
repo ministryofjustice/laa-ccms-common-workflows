@@ -20,6 +20,14 @@ inputs:
   provider_name:
     required: false
     description: "The provider name to check against. Required if is_provider is false."
+  retry_attempts:
+    required: false
+    default: 30
+    description: "The total times to retry"
+  retry_interval:
+    required: false
+    default: 20
+    description: "The interval in seconds between retries"
 runs:
   using: "composite"
   steps:
@@ -35,8 +43,8 @@ runs:
           broker can-i-deploy \
           --pacticipant ${{ inputs.pacticipant }} \
           --version ${{ inputs.version }} \
-          --retry-while-unknown 30 \
-          --retry-interval 10
+          --retry-while-unknown ${{ inputs.retry_attempts }} \
+          --retry-interval ${{ inputs.retry_interval }}
     - name: Can I Merge Consumer?
       if: ${{ inputs.is_provider == 'false' }}
       shell: bash
@@ -51,5 +59,5 @@ runs:
           --version ${{ inputs.version }} \
           --pacticipant ${{ inputs.provider_name }} \
           --branch main \
-          --retry-while-unknown 30 \
-          --retry-interval 10
+          --retry-while-unknown ${{ inputs.retry_attempts }} \
+          --retry-interval ${{ inputs.retry_interval }}
