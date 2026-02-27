@@ -216,7 +216,7 @@ jobs:
 
       - name: Upload test results
         if: ${{ inputs.junit_results == 'true' }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: test-results
           path: ${{ inputs.junit_results_path }}
@@ -224,7 +224,7 @@ jobs:
 
       - name: Upload test report
         if: ${{ inputs.junit_report == 'true' }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: test-report
           path: ${{ inputs.junit_report_path }}
@@ -232,7 +232,7 @@ jobs:
 
       - name: Upload checkstyle report
         if: ${{ inputs.checkstyle_report == 'true' }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: checkstyle-report
           path: ${{ inputs.checkstyle_report_path }}
@@ -240,7 +240,7 @@ jobs:
 
       - name: Upload jacoco coverage report
         if: ${{ inputs.jacoco_coverage_report == 'true' }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: jacoco-coverage-report
           path: ${{ inputs.jacoco_coverage_report_path }}
