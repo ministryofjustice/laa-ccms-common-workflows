@@ -108,7 +108,7 @@ jobs:
     container:
       image: returntocorp/semgrep
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Run Semgrep scan
         run: semgrep scan --exclude-rule python.django.security.django-no-csrf-token.django-no-csrf-token --error --config auto
 
@@ -131,26 +131,26 @@ jobs:
       - name: Get app token
         if: ${{ env.GITHUB_APP_ID != '' && env.GITHUB_APP_PRIVATE_KEY != '' }}
         id: get_workflow_token
-        uses: peter-murray/workflow-application-token-action@v4
+        uses: peter-murray/workflow-application-token-action@d17e3a9a36850ea89f35db16c1067dd2b68ee343 # v4.0.1
         with:
           application_id: ${{ secrets.github_app_id }}
           application_private_key: ${{ secrets.github_app_private_key }}
           organization: ${{ secrets.github_app_organisation }}
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         if: ${{ inputs.create_tag != 'true' }}
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         if: ${{ inputs.create_tag == 'true' }}
         with:
           ref: ${{ inputs.override_tagged_branch }}
           token: ${{ steps.get_workflow_token.outputs.token || env.GITHUB_TOKEN }}
       - name: Set up JDK ${{ inputs.java_version }}
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
         with:
           java-version: ${{ inputs.java_version }}
           distribution: ${{ inputs.java_distribution }}
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
 
       - name: Gradle ${{ inputs.build_command }}
         run: ./gradlew ${{ inputs.build_command }} ${{ inputs.build_args }}
@@ -216,7 +216,7 @@ jobs:
 
       - name: Upload test results
         if: ${{ inputs.junit_results == 'true' }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: test-results
           path: ${{ inputs.junit_results_path }}
@@ -224,7 +224,7 @@ jobs:
 
       - name: Upload test report
         if: ${{ inputs.junit_report == 'true' }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: test-report
           path: ${{ inputs.junit_report_path }}
@@ -232,7 +232,7 @@ jobs:
 
       - name: Upload checkstyle report
         if: ${{ inputs.checkstyle_report == 'true' }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: checkstyle-report
           path: ${{ inputs.checkstyle_report_path }}
@@ -240,7 +240,7 @@ jobs:
 
       - name: Upload jacoco coverage report
         if: ${{ inputs.jacoco_coverage_report == 'true' }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: jacoco-coverage-report
           path: ${{ inputs.jacoco_coverage_report_path }}
