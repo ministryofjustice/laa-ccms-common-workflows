@@ -137,8 +137,8 @@ jobs:
           echo "image_name=$image_name" >> $GITHUB_OUTPUT
           echo "Image built with version: $image_name"
 
-      - name: Scan image
-        if: ${{ inputs.image_scan == 'true' }}
+      - name: Scan image (trivy compromised - temporarily disabled)
+        if: ${{ false }}
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
         with:
           version: 'v0.69.2'
