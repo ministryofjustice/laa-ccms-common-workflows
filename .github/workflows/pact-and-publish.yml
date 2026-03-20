@@ -71,8 +71,15 @@ jobs:
       PACT_BROKER_USERNAME: ${{ secrets.pact_broker_username }}
       PACT_BROKER_PASSWORD: ${{ secrets.pact_broker_password }}
     steps:
+
       - name: Set branch name
-        run: echo "GIT_BRANCH=${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}" >> $GITHUB_ENV
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "GIT_BRANCH=main" >> $GITHUB_ENV
+            echo "PACT_TAG=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> PACT_TAG
+          else
+            echo "GIT_BRANCH=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_ENV
+          fi
 
       - name: Get app token
         if: ${{ env.GITHUB_APP_ID != '' && env.GITHUB_APP_PRIVATE_KEY != '' }}
