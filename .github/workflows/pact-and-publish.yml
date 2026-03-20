@@ -43,6 +43,15 @@ on:
         required: false
         type: boolean
         default: false
+      git_branch:
+        description: 'Git Branch to record Pact against (defaults to either branch or tag name)'
+        required: false
+        type: string
+        default: ${{ github.head_ref }}
+      pact_tags:
+        description: 'Comma-separated list of tags to add to Pact (e.g., "v1.0.0,production,stable")'
+        required: false
+        type: string
 
     secrets:
       gh_token:
@@ -71,15 +80,16 @@ jobs:
       PACT_BROKER_USERNAME: ${{ secrets.pact_broker_username }}
       PACT_BROKER_PASSWORD: ${{ secrets.pact_broker_password }}
     steps:
-
       - name: Set branch name
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "GIT_BRANCH=main" >> $GITHUB_ENV
-            echo "PACT_TAG=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> PACT_TAG
+          if [[ -n "${{ inputs.git_branch }}" ]]; then
+            echo "GIT_BRANCH=${{ inputs.git_branch }}" >> $GITHUB_ENV
           else
-            echo "GIT_BRANCH=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_ENV
+            echo "GIT_BRANCH=${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}" >> $GITHUB_ENV
           fi
+
+      - name: Set pact tags
+        run: echo "PACT_TAGS=${{ inputs.pact_tags }}" >> $GITHUB_ENV
 
       - name: Get app token
         if: ${{ env.GITHUB_APP_ID != '' && env.GITHUB_APP_PRIVATE_KEY != '' }}
