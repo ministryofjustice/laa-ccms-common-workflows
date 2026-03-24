@@ -24,15 +24,11 @@ on:
       image_scan_severity:
         required: false
         type: string
-        default: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
-      image_scan_skip_db_update:
+        default: 'medium'
+      image_scan_fail_on:
         required: false
         type: string
-        default: false
-      image_scan_skip_java_db_update:
-        required: false
-        type: string
-        default: false
+        default: 'upgradable'
       publish:
         required: false
         type: string
@@ -53,7 +49,7 @@ on:
       ecr_registry:
         required: false
       snyk_token:
-        required: false
+        required: true
       root_certificate:
         required: false
       binding_directory:
@@ -165,6 +161,8 @@ jobs:
         run: |
           snyk container test ${{ steps.build-image.outputs.image_name }} \
             --org=legal-aid-agency \
+            --severity-threshold=${{ inputs.image_scan_severity }} \
+            --fail-on=${{ inputs.image_scan_fail_on }} \
             --sarif-file-output=snyk-report.sarif
 
       - name: Fix undefined values in sarif report

@@ -115,6 +115,7 @@ the given AWS ECR repository.
 - Java / Gradle project
 - [SpringBoot Plugin (for
   `buildBootImage`)](https://github.com/ministryofjustice/laa-ccms-spring-boot-common) enabled
+- Snyk token for a CI account in the LAA organisation (image scanning)
 
 ```yaml
 jobs:
@@ -136,14 +137,16 @@ jobs:
 
 #### Inputs
 
-| Input                            | Description                                                | Required | Default                              |
-|----------------------------------|------------------------------------------------------------|----------|--------------------------------------|
-| `java_version`                   | The Java JDK version to run build commands with.           | false    | `21`                                 |
-| `java_distribution`              | The Java JDK distribution.                                 | false    | `temurin`                            |
-| `image_version`                  | The image version to be published.                         | true     |                                      |
-| `jar_subproject`                 | The gradle subproject to run the `bootBuildImage` task in. | false    |                                      |
-| `image_scan`                     | Whether to scan the built image (via Snyk).                | false    | `true`                               |
-| `publish`                        | Whether to publish the image. Disable for scanning only.   | false    | `true`                               |
+| Input                 | Description                                                                                                                                                             | Required | Default      |
+|-----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|--------------|
+| `java_version`        | The Java JDK version to run build commands with.                                                                                                                        | false    | `21`         |
+| `java_distribution`   | The Java JDK distribution.                                                                                                                                              | false    | `temurin`    |
+| `image_version`       | The image version to be published.                                                                                                                                      | true     |              |
+| `jar_subproject`      | The gradle subproject to run the `bootBuildImage` task in.                                                                                                              | false    |              |
+| `image_scan`          | Whether to scan the built image (via Snyk).                                                                                                                             | false    | `true`       |
+| `image_scan_severity` | The minumum severity level to flag in the image scan report. Any vulnerabilities identified at this level or above will fail the pipeline.                              | false    | `medium`     |
+| `image_scan_fail_on`  | The types of vulnerabiltiies that will fail the pipeline. See [snyk container test](https://docs.snyk.io/developer-tools/snyk-cli/commands/container-test) CLI command. | false    | `upgradable` |
+| `publish`             | Whether to publish the image. Disable for scanning only.                                                                                                                | false    | `true`       |
 | `tag_with_latest`                | Whether to publish the image with the `latest` tag also.       | false    | `false`                              |
 
 #### Secrets
@@ -155,7 +158,7 @@ jobs:
 | `ecr_repository`     | The name of the ECR repository to publish to.                                                                                     | true     |         |
 | `ecr_role_to_assume` | The AWS role to assume to connect to ECR.                                                                                         | true     |         |
 | `ecr_registry`       | The ECR registry to publish to, if in a different account to the role.                                                            | false    |         |
-| `snyk_token`         | The API token for Snyk. This should be from an LAA service account. Required when `image_scan=true`.                              | false    |         |
+| `snyk_token`         | The API token for Snyk. This should be from an LAA service account. Required when `image_scan=true`.                              | true     |         |
 | `root_certificate`   | The root certificate to embed into the image. This will be added to the JVM Truststore.                                           | false    |         |
 | `binding_directory`  | The directory used for binding the root certificate. See [Paketo Bindings](https://paketo.io/docs/howto/configuration/#bindings). | false    |         |
 
