@@ -1,3 +1,5 @@
+[![Ministry of Justice Repository Compliance Badge](https://github-community.service.justice.gov.uk/repository-standards/api/laa-ccms-common-workflows/badge)](https://github-community.service.justice.gov.uk/repository-standards/laa-ccms-common-workflows)
+
 # LAA CCMS Common Workflows
 
 A library of commonly used GitHub actions and workflows used within LAA CCMS
