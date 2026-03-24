@@ -131,21 +131,19 @@ jobs:
       ecr_repository: ${{ vars.ECR_REPOSITORY }}
       ecr_region: ${{ vars.ECR_REGION }}
       ecr_role_to_assume: ${{ secrets.ECR_ROLE_TO_ASSUME }}
+      snyk_token: ${{ secrets.snyk_token }}
 ```
 
 #### Inputs
 
-| Input                            | Description                                                  | Required | Default                              |
-|----------------------------------|--------------------------------------------------------------|----------|--------------------------------------|
-| `java_version`                   | The Java JDK version to run build commands with.             | false    | `21`                                 |
-| `java_distribution`              | The Java JDK distribution.                                   | false    | `temurin`                            |
-| `image_version`                  | The image version to be published.                           | true     |                                      |
-| `jar_subproject`                 | The gradle subproject to run the `bootBuildImage` task in.   | false    |                                      |
-| `image_scan`                     | Whether to scan the built image (via Trivy).                 | false    | `true`                               |
-| `image_scan_severity`            | The severity levels to include in the image scan report.     | false    | `'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'` |
-| `image_scan_skip_db_update `     | Whether to update the database for image scanning.           | false    | `true`                               |
-| `image_scan_skip_java_db_update` | Whether to skip the java database update for image scanning. | false    | `true`                               |
-| `publish`                        | Whether to publish the image. Disable for scanning only.     | false    | `true`                               |
+| Input                            | Description                                                | Required | Default                              |
+|----------------------------------|------------------------------------------------------------|----------|--------------------------------------|
+| `java_version`                   | The Java JDK version to run build commands with.           | false    | `21`                                 |
+| `java_distribution`              | The Java JDK distribution.                                 | false    | `temurin`                            |
+| `image_version`                  | The image version to be published.                         | true     |                                      |
+| `jar_subproject`                 | The gradle subproject to run the `bootBuildImage` task in. | false    |                                      |
+| `image_scan`                     | Whether to scan the built image (via Snyk).                | false    | `true`                               |
+| `publish`                        | Whether to publish the image. Disable for scanning only.   | false    | `true`                               |
 | `tag_with_latest`                | Whether to publish the image with the `latest` tag also.       | false    | `false`                              |
 
 #### Secrets
@@ -157,6 +155,7 @@ jobs:
 | `ecr_repository`     | The name of the ECR repository to publish to.                                                                                     | true     |         |
 | `ecr_role_to_assume` | The AWS role to assume to connect to ECR.                                                                                         | true     |         |
 | `ecr_registry`       | The ECR registry to publish to, if in a different account to the role.                                                            | false    |         |
+| `snyk_token`         | The API token for Snyk. This should be from an LAA service account. Required when `image_scan=true`.                              | false    |         |
 | `root_certificate`   | The root certificate to embed into the image. This will be added to the JVM Truststore.                                           | false    |         |
 | `binding_directory`  | The directory used for binding the root certificate. See [Paketo Bindings](https://paketo.io/docs/howto/configuration/#bindings). | false    |         |
 

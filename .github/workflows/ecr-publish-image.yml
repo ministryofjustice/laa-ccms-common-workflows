@@ -52,6 +52,8 @@ on:
         required: true
       ecr_registry:
         required: false
+      snyk_token:
+        required: false
       root_certificate:
         required: false
       binding_directory:
@@ -147,9 +149,20 @@ jobs:
           echo "latest_image_name=$latest_image_name" >> $GITHUB_OUTPUT
           echo "Image built with version: $image_name"
 
-      - name: Scan image (trivy compromised - temporarily disabled)
-        if: ${{ false }}
-        run: exit 0 # trivy-action step removed
+      - name: Scan image
+        if: ${{ inputs.image_scan == 'true' }}
+        uses: snyk/actions/docker@9adf32b1121593767fc3c057af55b55db032dc04 # v1.0.0
+        env:
+          SNYK_TOKEN: ${{ secrets.snyk_token }}
+        with:
+          image: ${{ steps.build-image.outputs.image_name }}
+          args: --severity-threshold=high
+
+      - name: Upload image scan result to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@38697555549f1db7851b81482ff19f1fa5c4fedc # v4.34.1
+        with:
+          sarif_file: snyk.sarif
+
       - name: Publish image
         if: ${{ inputs.publish == 'true' }}
         id: publish-image
