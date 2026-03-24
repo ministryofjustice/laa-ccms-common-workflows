@@ -167,6 +167,8 @@ jobs:
       - name: Fix undefined values in sarif report
         if: ${{ inputs.image_scan == 'true' }}
         run: |
+          echo "Input sarif: "
+          cat snyk-report.sarif
           cat snyk-report.sarif | jq '
               .runs[].tool[].rules[]
               |= (
@@ -183,6 +185,8 @@ jobs:
                    end
                )
           ' > snyk-report-cleansed.sarif
+          echo "Output sarif: "
+          cat snyk-report-cleansed.sarif
 
       - name: Upload image scan result to GitHub Code Scanning
         if: ${{ inputs.image_scan == 'true' }}
