@@ -63,6 +63,9 @@ on:
         description: "The version of the published image."
         value: ${{ jobs.ecr-publish-image.outputs.published_image_version }}
 
+run-name: >-
+  ${{ inputs.publish && 'Publish image' || (inputs.image_scan && 'Scan image') }}
+
 permissions:
   contents: read
   id-token: write
