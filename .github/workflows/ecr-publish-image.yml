@@ -172,7 +172,12 @@ jobs:
           cat snyk-report.sarif | jq '
               .runs[].tool[].rules[]
               |= (
-                  if .properties["security-severity"] == "undefined"
+                  if (
+                    .properties["security-severity"] == null or
+                    .properties["security-severity"] == "null" or
+                    .properties["security-severity"] == "undefined" or
+                    .properties["security-severity"] == ""
+                  )
                   then .properties["security-severity"] =
                    (  if .shortDescription.text | test("(?i)critical") then "9.0"
                       elif .shortDescription.text | test("(?i)high") then "7.0"
