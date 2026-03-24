@@ -199,6 +199,12 @@ jobs:
         with:
           sarif_file: snyk-report-cleansed.sarif
 
+      - name: Fail job if Snyk found vulnerabilities
+        if: ${{ steps.snyk.outcome == 'failure' }}
+        run: |
+          echo "Snyk found vulnerabilities, see code scanning outputs."
+          exit 1
+
       - name: Publish image
         if: ${{ inputs.publish == 'true' }}
         id: publish-image
