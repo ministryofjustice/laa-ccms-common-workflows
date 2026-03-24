@@ -162,13 +162,33 @@ jobs:
         run: |
           snyk container test ${{ steps.build-image.outputs.image_name }} \
             --org=legal-aid-agency \
-            --sarif-file-output=snyk.sarif
+            --sarif-file-output=snyk-report.sarif
+
+      - name: Fix undefined values in sarif report
+        if: ${{ inputs.image_scan == 'true' }}
+        run: |
+          cat snyk-report.sarif | jq '
+              .runs[].tool[].rules[]
+              |= (
+                  if .properties["security-severity"] == "undefined"
+                  then .properties["security-severity"] =
+                   (  if .shortDescription.text | test("(?i)critical") then "9.0"
+                      elif .shortDescription.text | test("(?i)high") then "7.0"
+                      elif .shortDescription.text | test("(?i)medium") then "4.0"
+                      elif .shortDescription.text | test("(?i)low") then "0.1"
+                      else ""
+                      end
+                   )
+                   else .
+                   end
+               )
+          ' > snyk-report-cleansed.sarif
 
       - name: Upload image scan result to GitHub Code Scanning
         if: ${{ inputs.image_scan == 'true' }}
         uses: github/codeql-action/upload-sarif@38697555549f1db7851b81482ff19f1fa5c4fedc # v4.34.1
         with:
-          sarif_file: snyk.sarif
+          sarif_file: snyk-report-cleansed.sarif
 
       - name: Publish image
         if: ${{ inputs.publish == 'true' }}
