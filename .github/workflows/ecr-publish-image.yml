@@ -66,6 +66,7 @@ on:
 permissions:
   contents: read
   id-token: write
+  security-events: read
 
 jobs:
   ecr-publish-image:
