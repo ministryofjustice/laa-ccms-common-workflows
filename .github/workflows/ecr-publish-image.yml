@@ -76,6 +76,7 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.gh_token }}
       ECR_REGISTRY: ${{ secrets.ecr_registry }}
       ROOT_CERTIFICATE: ${{ secrets.root_certificate }}
+      SNYK_TOKEN: ${{ secrets.snyk_token }}
 
     outputs:
       published_image_version: ${{ steps.publish-image.outputs.published_image_version }}
@@ -150,15 +151,18 @@ jobs:
           echo "latest_image_name=$latest_image_name" >> $GITHUB_OUTPUT
           echo "Image built with version: $image_name"
 
+      - name: Install Snyk CLI
+        if: ${{ inputs.image_scan == 'true' }}
+        uses: snyk/actions/setup@9adf32b1121593767fc3c057af55b55db032dc04 # v1.0.0
+
       - name: Scan image
         if: ${{ inputs.image_scan == 'true' }}
-        uses: snyk/actions/docker@9adf32b1121593767fc3c057af55b55db032dc04 # v1.0.0
+        id: snyk
         continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.snyk_token }}
-        with:
-          image: ${{ steps.build-image.outputs.image_name }}
-          args: --severity-threshold=high
+        run: |
+          snyk container test ${{ steps.build-image.outputs.image_name }} \
+            --org=legal-aid-agency \
+            --sarif-file-output=snyk.sarif
 
       - name: Upload image scan result to GitHub Code Scanning
         if: ${{ inputs.image_scan == 'true' }}
