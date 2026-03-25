@@ -150,7 +150,7 @@ jobs:
         run: |
           if [[ "${{ inputs.tag_with_latest }}" == "true" ]]; then
             docker push ${{ steps.build-image.outputs.image_name }}
-            docker push ${{ steps.build-image.outputs.image_latest }}
+            docker push latest
             echo "published_image_version=${{ inputs.image_version }}" >> $GITHUB_OUTPUT
             echo "Image published to ECR with version: \`${{ inputs.image_version }}\` and tagged as \`latest\`" >> $GITHUB_STEP_SUMMARY
             echo "Published image version: ${{ inputs.image_version }} (also tagged as latest)"
