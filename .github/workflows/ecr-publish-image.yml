@@ -59,9 +59,6 @@ on:
         description: "The version of the published image."
         value: ${{ jobs.ecr-publish-image.outputs.published_image_version }}
 
-run-name: >-
-  ${{ inputs.publish == 'true' && 'Publish image' || (inputs.image_scan == 'true' && 'Scan image') }}
-
 permissions:
   contents: read
   id-token: write
@@ -70,6 +67,8 @@ permissions:
 jobs:
   ecr-publish-image:
     runs-on: ubuntu-latest
+
+    name: ${{ inputs.publish == 'true' && 'Publish image' || (inputs.image_scan == 'true' && 'Scan image') || 'Image pipeline' }}
 
     env:
       GITHUB_TOKEN: ${{ secrets.gh_token }}
