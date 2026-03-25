@@ -60,7 +60,7 @@ on:
         value: ${{ jobs.ecr-publish-image.outputs.published_image_version }}
 
 run-name: >-
-  ${{ inputs.publish && 'Publish image' || (inputs.image_scan && 'Scan image') }}
+  ${{ inputs.publish == 'true' && 'Publish image' || (inputs.image_scan == 'true' && 'Scan image') }}
 
 permissions:
   contents: read
