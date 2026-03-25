@@ -135,10 +135,9 @@ jobs:
           if [[ -n "${{ inputs.jar_subproject }}" ]]; then
             gradle_subproject=":${{ inputs.jar_subproject }}:"
           fi
-          
           image_name=${REGISTRY}/${REPOSITORY}:${{ inputs.image_version }}
           ./gradlew ${gradle_subproject}bootBuildImage \
-            --imageName=$image_name 
+            --imageName $image_name
           echo "image_name=$image_name" >> $GITHUB_OUTPUT
           echo "Image built with version: $image_name"
 
