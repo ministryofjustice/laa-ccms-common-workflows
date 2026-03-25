@@ -39,7 +39,7 @@ on:
         default: true
       tag_with_latest:
         required: false
-        type: string
+        type: boolean
         default: false
     secrets:
       gh_token:
