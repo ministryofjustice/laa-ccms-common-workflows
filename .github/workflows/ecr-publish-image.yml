@@ -37,6 +37,10 @@ on:
         required: false
         type: string
         default: true
+      tag_with_latest:
+        required: false
+        type: boolean
+        default: false
     secrets:
       gh_token:
         required: true
@@ -131,11 +135,21 @@ jobs:
           if [[ -n "${{ inputs.jar_subproject }}" ]]; then
             gradle_subproject=":${{ inputs.jar_subproject }}:"
           fi
+          
           image_name=${REGISTRY}/${REPOSITORY}:${{ inputs.image_version }}
-          ./gradlew ${gradle_subproject}bootBuildImage \
-            --imageName $image_name
-          echo "image_name=$image_name" >> $GITHUB_OUTPUT
-          echo "Image built with version: $image_name"
+          if [[ "${{ inputs.tag_with_latest }}" == "true" ]]; then
+            image_latest=${REGISTRY}/${REPOSITORY}:latest
+            ./gradlew ${gradle_subproject}bootBuildImage \
+              --imageName $image_name --imageName $image_latest
+            echo "image_name=$image_name" >> $GITHUB_OUTPUT
+            echo "Image built with version: $image_name"
+            echo "Image built with version: $image_latest"
+          else
+            ./gradlew ${gradle_subproject}bootBuildImage \
+              --imageName $image_name
+            echo "image_name=$image_name" >> $GITHUB_OUTPUT
+            echo "Image built with version: $image_name"
+          fi
 
       - name: Scan image (trivy compromised - temporarily disabled)
         if: ${{ false }}
@@ -144,7 +158,16 @@ jobs:
         if: ${{ inputs.publish == 'true' }}
         id: publish-image
         run: |
-          docker push ${{ steps.build-image.outputs.image_name }}
-          echo "published_image_version=${{ inputs.image_version }}" >> $GITHUB_OUTPUT
-          echo "Image published to ECR with version: \`${{ inputs.image_version }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "Published image version: ${{ inputs.image_version }}"
+          if [[ "${{ inputs.tag_with_latest }}" == "true" ]]; then
+            docker push ${{ steps.build-image.outputs.image_name }}
+            docker push ${{ steps.build-image.outputs.image_latest }}
+            echo "published_image_version=${{ inputs.image_version }}" >> $GITHUB_OUTPUT
+            echo "Image published to ECR with version: \`${{ inputs.image_version }}\` and tagged as \`latest\`" >> $GITHUB_STEP_SUMMARY
+            echo "Published image version: ${{ inputs.image_version }} (also tagged as latest)"
+          else
+            docker push ${{ steps.build-image.outputs.image_name }}
+            echo "published_image_version=${{ inputs.image_version }}" >> $GITHUB_OUTPUT
+            echo "Image published to ECR with version: \`${{ inputs.image_version }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "Published image version: ${{ inputs.image_version }}"
+          fi
+
