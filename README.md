@@ -146,6 +146,7 @@ jobs:
 | `image_scan_skip_db_update `     | Whether to update the database for image scanning.           | false    | `true`                               |
 | `image_scan_skip_java_db_update` | Whether to skip the java database update for image scanning. | false    | `true`                               |
 | `publish`                        | Whether to publish the image. Disable for scanning only.     | false    | `true`                               |
+| `tag_with_latest`                | Whether to publish the image with the `latest` tag also.       | false    | `false`                              |
 
 #### Secrets
 
