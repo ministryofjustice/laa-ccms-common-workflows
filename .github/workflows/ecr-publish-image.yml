@@ -103,7 +103,7 @@ jobs:
         with:
           registries: ${{ secrets.ecr_registry }}
         id: login-another-ecr
-
+ 
       - name: Configure certificate binding
         if: ${{ env.ROOT_CERTIFICATE != '' }}
         run: |
@@ -140,13 +140,14 @@ jobs:
           if [[ "${{ inputs.tag_with_latest }}" == "true" ]]; then
             image_latest=${REGISTRY}/${REPOSITORY}:latest
             ./gradlew ${gradle_subproject}bootBuildImage \
-              --imageName $image_name --imageName $image_latest
+              --imageName=$image_name \
+              --imageName=$image_latest
             echo "image_name=$image_name" >> $GITHUB_OUTPUT
             echo "Image built with version: $image_name"
             echo "Image built with version: $image_latest"
           else
             ./gradlew ${gradle_subproject}bootBuildImage \
-              --imageName $image_name
+              --imageName=$image_name
             echo "image_name=$image_name" >> $GITHUB_OUTPUT
             echo "Image built with version: $image_name"
           fi
@@ -170,4 +171,3 @@ jobs:
             echo "Image published to ECR with version: \`${{ inputs.image_version }}\`" >> $GITHUB_STEP_SUMMARY
             echo "Published image version: ${{ inputs.image_version }}"
           fi
-
