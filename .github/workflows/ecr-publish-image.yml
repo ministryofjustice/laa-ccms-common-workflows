@@ -6,7 +6,7 @@ on:
       java_version:
         required: false
         type: string
-        default: 21
+        default: 25
       java_distribution:
         required: false
         type: string

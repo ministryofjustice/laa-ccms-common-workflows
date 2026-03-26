@@ -68,7 +68,7 @@ jobs:
 
 | Input                         | Description                                                                                                                                                             | Required | Default                    |
 |-------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|----------------------------|
-| `java_version`                | The Java JDK version to run build commands with.                                                                                                                        | false    | `21`                       |
+| `java_version`                | The Java JDK version to run build commands with.                                                                                                                        | false    | `25`                       |
 | `java_distribution`           | The Java JDK distribution.                                                                                                                                              | false    | `temurin`                  |
 | `build_command`               | The gradle build command to run.                                                                                                                                        | false    | `build`                    |
 | `build_args`                  | Additional build arguments to pass to the gradle `build` task.                                                                                                          | false    |                            |
@@ -141,7 +141,7 @@ jobs:
 
 | Input                 | Description                                                                                                                                                             | Required | Default      |
 |-----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|--------------|
-| `java_version`        | The Java JDK version to run build commands with.                                                                                                                        | false    | `21`         |
+| `java_version`        | The Java JDK version to run build commands with.                                                                                                                        | false    | `25`         |
 | `java_distribution`   | The Java JDK distribution.                                                                                                                                              | false    | `temurin`    |
 | `image_version`       | The image version to be published.                                                                                                                                      | true     |              |
 | `jar_subproject`      | The gradle subproject to run the `bootBuildImage` task in.                                                                                                              | false    |              |
@@ -207,7 +207,7 @@ jobs:
 
 | Input                   | Description                                                                                                                                                                                             | Required | Default            |
 |-------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|--------------------|
-| `java_version`          | The Java JDK version to run build commands with.                                                                                                                                                        | false    | `21`               |
+| `java_version`          | The Java JDK version to run build commands with.                                                                                                                                                        | false    | `25`               |
 | `java_distribution`     | The Java JDK distribution.                                                                                                                                                                              | false    | `temurin`          |
 | `snyk_organisation`     | Which Snyk organisation to use. See [`--org`](https://docs.snyk.io/snyk-cli/commands/test#org-less-than-org_id-greater-than).                                                                           | false    | `legal-aid-agency` |
 | `snyk_test_exclude`     | Which files / directories to exclude from Snyk testing. See [`--exclude`](https://docs.snyk.io/snyk-cli/commands/test#exclude-less-than-name-greater-than-less-than-name-greater-than-...greater-than). | false    |                    |
@@ -258,7 +258,7 @@ jobs:
 
 | Input                         | Description                                                                                                                                                                                             | Required | Default            |
 |-------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|--------------------|
-| `java_version`                | The Java JDK version to run build commands with.                                                                                                                                                        | false    | `21`               |
+| `java_version`                | The Java JDK version to run build commands with.                                                                                                                                                        | false    | `25`               |
 | `java_distribution`           | The Java JDK distribution.                                                                                                                                                                              | false    | `temurin`          |
 | `snyk_organisation`           | Which Snyk organisation to use. See [`--org`](https://docs.snyk.io/snyk-cli/commands/test#org-less-than-org_id-greater-than).                                                                           | false    | `legal-aid-agency` |
 | `snyk_test_exclude`           | Which files / directories to exclude from Snyk testing. See [`--exclude`](https://docs.snyk.io/snyk-cli/commands/test#exclude-less-than-name-greater-than-less-than-name-greater-than-...greater-than). | false    |                    |
@@ -359,7 +359,7 @@ jobs:
 
 | Input                  | Description                                                                                                     | Required | Default    |
 |------------------------|-----------------------------------------------------------------------------------------------------------------|----------|------------|
-| `java_version`         | The Java JDK version to run build commands with.                                                                | false    | `21`       |
+| `java_version`         | The Java JDK version to run build commands with.                                                                | false    | `25`       |
 | `java_distribution`    | The Java JDK distribution.                                                                                      | false    | `temurin`  |
 | `pact_test_task`       | The gradle task to run the pact tests.                                                                          | true     |            |
 | `pacticipant_name`     | The name of the pacticipant according to Pact Broker.                                                           | true     |            |
@@ -435,7 +435,7 @@ jobs:
 
 | Input               | Description                                                                                  | Required | Default   |
 |---------------------|----------------------------------------------------------------------------------------------|----------|-----------|
-| `java_version`      | The Java JDK version to run build commands with.                                             | false    | `21`      |
+| `java_version`      | The Java JDK version to run build commands with.                                             | false    | `25`      |
 | `java_distribution` | The Java JDK distribution.                                                                   | false    | `temurin` |
 | `pact_test_task`    | The gradle task to run the pact tests.                                                       | true     |           |
 | `consumer_name`     | The consumer name which triggered the webhook (Pact broker passes this as an event input).   | true     |           |
