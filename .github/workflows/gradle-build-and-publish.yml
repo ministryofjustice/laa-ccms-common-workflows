@@ -118,6 +118,8 @@ jobs:
     if: ${{ always() && (inputs.semgrep_check != 'true' || (needs.semgrep-scan.result != 'failure' && needs.semgrep-scan.result != 'cancelled')) }}
     runs-on: ubuntu-latest
 
+    name: ${{ inputs.create_tag == 'true' && 'Create tag' || (inputs.publish_package == 'Build and publish package' && 'Scan image') || 'Build pipeline' }}
+
     env:
       GITHUB_TOKEN: ${{ secrets.gh_token }}
       AWS_REGION: ${{ secrets.aws_region }}

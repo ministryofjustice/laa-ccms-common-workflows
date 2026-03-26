@@ -24,15 +24,11 @@ on:
       image_scan_severity:
         required: false
         type: string
-        default: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
-      image_scan_skip_db_update:
+        default: 'medium'
+      image_scan_fail_on:
         required: false
         type: string
-        default: false
-      image_scan_skip_java_db_update:
-        required: false
-        type: string
-        default: false
+        default: 'upgradable'
       publish:
         required: false
         type: string
@@ -52,6 +48,8 @@ on:
         required: true
       ecr_registry:
         required: false
+      snyk_token:
+        required: true
       root_certificate:
         required: false
       binding_directory:
@@ -64,15 +62,19 @@ on:
 permissions:
   contents: read
   id-token: write
+  security-events: write
 
 jobs:
   ecr-publish-image:
     runs-on: ubuntu-latest
 
+    name: ${{ inputs.publish == 'true' && 'Publish image' || (inputs.image_scan == 'true' && 'Scan image') || 'Image pipeline' }}
+
     env:
       GITHUB_TOKEN: ${{ secrets.gh_token }}
       ECR_REGISTRY: ${{ secrets.ecr_registry }}
       ROOT_CERTIFICATE: ${{ secrets.root_certificate }}
+      SNYK_TOKEN: ${{ secrets.snyk_token }}
 
     outputs:
       published_image_version: ${{ steps.publish-image.outputs.published_image_version }}
@@ -147,9 +149,62 @@ jobs:
           echo "latest_image_name=$latest_image_name" >> $GITHUB_OUTPUT
           echo "Image built with version: $image_name"
 
-      - name: Scan image (trivy compromised - temporarily disabled)
-        if: ${{ false }}
-        run: exit 0 # trivy-action step removed
+      - name: Install Snyk CLI
+        if: ${{ inputs.image_scan == 'true' }}
+        uses: snyk/actions/setup@9adf32b1121593767fc3c057af55b55db032dc04 # v1.0.0
+
+      - name: Scan image
+        if: ${{ inputs.image_scan == 'true' }}
+        id: snyk
+        continue-on-error: true
+        run: |
+          snyk container test ${{ steps.build-image.outputs.image_name }} \
+            --org=legal-aid-agency \
+            --severity-threshold=${{ inputs.image_scan_severity }} \
+            --fail-on=${{ inputs.image_scan_fail_on }} \
+            --sarif-file-output=snyk-report.sarif
+
+      - name: Fix undefined values in sarif report
+        if: ${{ inputs.image_scan == 'true' }}
+        run: |
+          echo "Input sarif: "
+          cat snyk-report.sarif
+          cat snyk-report.sarif | jq '
+              .runs[].tool[].rules[]
+              |= (
+                  if (
+                    .properties["security-severity"] == null or
+                    .properties["security-severity"] == "null" or
+                    .properties["security-severity"] == "undefined" or
+                    .properties["security-severity"] == ""
+                  )
+                  then .properties["security-severity"] =
+                   (  if .shortDescription.text | test("(?i)critical") then "9.0"
+                      elif .shortDescription.text | test("(?i)high") then "7.0"
+                      elif .shortDescription.text | test("(?i)medium") then "4.0"
+                      elif .shortDescription.text | test("(?i)low") then "0.1"
+                      else ""
+                      end
+                   )
+                   else .
+                   end
+               )
+          ' > snyk-report-cleansed.sarif
+          echo "Output sarif: "
+          cat snyk-report-cleansed.sarif
+
+      - name: Upload image scan result to GitHub Code Scanning
+        if: ${{ inputs.image_scan == 'true' }}
+        uses: github/codeql-action/upload-sarif@38697555549f1db7851b81482ff19f1fa5c4fedc # v4.34.1
+        with:
+          sarif_file: snyk-report-cleansed.sarif
+
+      - name: Fail job if Snyk found vulnerabilities
+        if: ${{ inputs.image_scan == 'true' && steps.snyk.outcome == 'failure' }}
+        run: |
+          echo "Snyk found vulnerabilities, see code scanning outputs."
+          exit 1
+
       - name: Publish image
         if: ${{ inputs.publish == 'true' }}
         id: publish-image
