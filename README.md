@@ -139,17 +139,18 @@ jobs:
 
 #### Inputs
 
-| Input                 | Description                                                                                                                                                             | Required | Default      |
-|-----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|--------------|
-| `java_version`        | The Java JDK version to run build commands with.                                                                                                                        | false    | `25`         |
-| `java_distribution`   | The Java JDK distribution.                                                                                                                                              | false    | `temurin`    |
-| `image_version`       | The image version to be published.                                                                                                                                      | true     |              |
-| `jar_subproject`      | The gradle subproject to run the `bootBuildImage` task in.                                                                                                              | false    |              |
-| `image_scan`          | Whether to scan the built image (via Snyk).                                                                                                                             | false    | `true`       |
-| `image_scan_severity` | The minumum severity level to flag in the image scan report. Any vulnerabilities identified at this level or above will fail the pipeline.                              | false    | `medium`     |
-| `image_scan_fail_on`  | The types of vulnerabiltiies that will fail the pipeline. See [snyk container test](https://docs.snyk.io/developer-tools/snyk-cli/commands/container-test) CLI command. | false    | `upgradable` |
-| `publish`             | Whether to publish the image. Disable for scanning only.                                                                                                                | false    | `true`       |
-| `tag_with_latest`                | Whether to publish the image with the `latest` tag also.       | false    | `false`                              |
+| Input                    | Description                                                                                                                                                             | Required | Default      |
+|--------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|--------------|
+| `java_version`           | The Java JDK version to run build commands with.                                                                                                                        | false    | `25`         |
+| `java_distribution`      | The Java JDK distribution.                                                                                                                                              | false    | `temurin`    |
+| `image_version`          | The image version to be published.                                                                                                                                      | true     |              |
+| `jar_subproject`         | The gradle subproject to run the `bootBuildImage` task in.                                                                                                              | false    |              |
+| `image_scan`             | Whether to scan the built image (via Snyk).                                                                                                                             | false    | `true`       |
+| `image_scan_severity`    | The minumum severity level to flag in the image scan report. Any vulnerabilities identified at this level or above will fail the pipeline.                              | false    | `medium`     |
+| `image_scan_fail_on`     | The types of vulnerabiltiies that will fail the pipeline. See [snyk container test](https://docs.snyk.io/developer-tools/snyk-cli/commands/container-test) CLI command. | false    | `upgradable` |
+| `image_scan_policy_path` | The path to your [`.snyk` policy file](https://docs.snyk.io/manage-risk/policies/the-.snyk-file).                                                                       | false    | `.snyk`      |
+| `publish`                | Whether to publish the image. Disable for scanning only.                                                                                                                | false    | `true`       |
+| `tag_with_latest`        | Whether to publish the image with the `latest` tag also.                                                                                                                | false    | `false`      |
 
 #### Secrets
 
