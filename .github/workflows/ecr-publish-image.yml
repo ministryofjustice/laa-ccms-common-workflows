@@ -96,18 +96,16 @@ jobs:
           java-version: ${{ inputs.java_version }}
           distribution: ${{ inputs.java_distribution }}
 
-      # Validate secrets: require either SNYK_TOKEN or both SNYK_CLIENT_ID and SNYK_CLIENT_SECRET
-      - name: Validate Snyk secrets
+      # Validate secrets and set flag if Snyk Oauth token is required
+      - name: Validate Snyk secrets and set flag
+        if: ${{ inputs.image_scan == 'true' }}
+        id: validate-and-set-snyk-oauth-token-required
         run: |
           if [ -z "${{ secrets.snyk_token }}" ] && { [ -z "${{ secrets.snyk_client_id }}" ] || [ -z "${{ secrets.snyk_client_secret }}" ]; }; then
             echo "Error: You must provide either SNYK_TOKEN or both SNYK_CLIENT_ID and SNYK_CLIENT_SECRET as secrets."
+            echo "required=false" >> $GITHUB_OUTPUT
             exit 1
           fi
-
-      # Set flag to determine if we need to obtain a short-lived Snyk token
-      - name: Set SNYK_TOKEN_REQUIRED flag
-        id: set-snyk-token-required
-        run: |
           if [ -z "${{ secrets.snyk_token }}" ] && [ -n "${{ secrets.snyk_client_id }}" ] && [ -n "${{ secrets.snyk_client_secret }}" ]; then
             echo "required=true" >> $GITHUB_OUTPUT
           else
@@ -117,19 +115,11 @@ jobs:
       # Obtain short-lived Snyk token if required
       - name: Obtain Short-lived Snyk token
         id: auth
-        if: steps.set-snyk-token-required.outputs.required == 'true'
-        uses: ministryofjustice/laa-reusable-github-actions/.github/actions/snyk-auth@feat/snyk-token-output
+        if: ${{ inputs.image_scan == 'true' && steps.validate-and-set-snyk-oauth-token-required.outputs.required == 'true' }}
+        uses: ministryofjustice/laa-reusable-github-actions/.github/actions/snyk-auth@6db001458db30ae747d9eb8eb25707ce52b359bc # v??? no versioning in the action currently
         with:
           client_id: ${{ secrets.snyk_client_id }}
           client_secret: ${{ secrets.snyk_client_secret }}
-
-      # Set SNYK_TOKEN from auth step output if needed
-      - name: Set SNYK_TOKEN from auth output
-        if: steps.set-snyk-token-required.outputs.required == 'true'
-        run: |
-          if [ -z "$SNYK_TOKEN" ] && [ -n "${{ steps.auth.outputs.token }}" ]; then
-            echo "SNYK_TOKEN=${{ steps.auth.outputs.token }}" >> $GITHUB_ENV
-          fi
 
       - name: Configure aws credentials
         if: ${{ inputs.publish == 'true' }}
@@ -202,7 +192,7 @@ jobs:
         id: snyk
         continue-on-error: true
         env:
-          SNYK_TOKEN: ${{ env.SNYK_TOKEN }}
+          SNYK_TOKEN: ${{ steps.auth.outputs.token || env.SNYK_TOKEN }}
         run: |
           snyk container test ${{ steps.build-image.outputs.image_name }} \
             --org=legal-aid-agency \
