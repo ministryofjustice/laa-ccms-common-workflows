@@ -94,7 +94,7 @@ jobs:
       - name: Get app token
         if: ${{ env.GITHUB_APP_ID != '' && env.GITHUB_APP_PRIVATE_KEY != '' }}
         id: get_workflow_token
-        uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3.0.0
+        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
         with:
           app-id: ${{ secrets.github_app_id }}
           private-key: ${{ secrets.github_app_private_key }}
@@ -113,7 +113,7 @@ jobs:
           distribution: ${{ inputs.java_distribution }}
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@39e147cb9de83bb9910b8ef8bd7fff0ee20fcd6f # v6.0.1
+        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
 
       - name: Run pact test
         id: run_pacts
