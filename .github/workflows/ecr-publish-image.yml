@@ -6,11 +6,11 @@ on:
       java_version:
         required: false
         type: string
-        default: 25
+        default: '25'
       java_distribution:
         required: false
         type: string
-        default: temurin
+        default: 'temurin'
       image_version:
         required: true
         type: string
@@ -20,7 +20,7 @@ on:
       image_scan:
         required: false
         type: string
-        default: true
+        default: 'true'
       image_scan_severity:
         required: false
         type: string
@@ -36,7 +36,7 @@ on:
       publish:
         required: false
         type: string
-        default: true
+        default: 'true'
       tag_with_latest:
         required: false
         type: boolean
@@ -53,7 +53,11 @@ on:
       ecr_registry:
         required: false
       snyk_token:
-        required: true
+        required: false
+      snyk_client_id:
+        required: false
+      snyk_client_secret:
+        required: false
       root_certificate:
         required: false
       binding_directory:
@@ -78,6 +82,7 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.gh_token }}
       ECR_REGISTRY: ${{ secrets.ecr_registry }}
       ROOT_CERTIFICATE: ${{ secrets.root_certificate }}
+      # SNYK_TOKEN will be set below if available, otherwise set by auth step
       SNYK_TOKEN: ${{ secrets.snyk_token }}
 
     outputs:
@@ -90,6 +95,41 @@ jobs:
         with:
           java-version: ${{ inputs.java_version }}
           distribution: ${{ inputs.java_distribution }}
+
+      # Validate secrets: require either SNYK_TOKEN or both SNYK_CLIENT_ID and SNYK_CLIENT_SECRET
+      - name: Validate Snyk secrets
+        run: |
+          if [ -z "${{ secrets.snyk_token }}" ] && { [ -z "${{ secrets.snyk_client_id }}" ] || [ -z "${{ secrets.snyk_client_secret }}" ]; }; then
+            echo "Error: You must provide either SNYK_TOKEN or both SNYK_CLIENT_ID and SNYK_CLIENT_SECRET as secrets."
+            exit 1
+          fi
+
+      # Set flag to determine if we need to obtain a short-lived Snyk token
+      - name: Set SNYK_TOKEN_REQUIRED flag
+        id: set-snyk-token-required
+        run: |
+          if [ -z "${{ secrets.snyk_token }}" ] && [ -n "${{ secrets.snyk_client_id }}" ] && [ -n "${{ secrets.snyk_client_secret }}" ]; then
+            echo "required=true" >> $GITHUB_OUTPUT
+          else
+            echo "required=false" >> $GITHUB_OUTPUT
+          fi
+
+      # Obtain short-lived Snyk token if required
+      - name: Obtain Short-lived Snyk token
+        id: auth
+        if: steps.set-snyk-token-required.outputs.required == 'true'
+        uses: ministryofjustice/laa-reusable-github-actions/.github/actions/snyk-auth@feat/snyk-token-output
+        with:
+          client_id: ${{ secrets.snyk_client_id }}
+          client_secret: ${{ secrets.snyk_client_secret }}
+
+      # Set SNYK_TOKEN from auth step output if needed
+      - name: Set SNYK_TOKEN from auth output
+        if: steps.set-snyk-token-required.outputs.required == 'true'
+        run: |
+          if [ -z "$SNYK_TOKEN" ] && [ -n "${{ steps.auth.outputs.token }}" ]; then
+            echo "SNYK_TOKEN=${{ steps.auth.outputs.token }}" >> $GITHUB_ENV
+          fi
 
       - name: Configure aws credentials
         if: ${{ inputs.publish == 'true' }}
@@ -161,6 +201,8 @@ jobs:
         if: ${{ inputs.image_scan == 'true' }}
         id: snyk
         continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ env.SNYK_TOKEN }}
         run: |
           snyk container test ${{ steps.build-image.outputs.image_name }} \
             --org=legal-aid-agency \
