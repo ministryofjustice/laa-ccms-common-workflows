@@ -116,7 +116,7 @@ jobs:
       - name: Obtain Short-lived Snyk token
         id: auth
         if: ${{ inputs.image_scan == 'true' && steps.validate-and-set-snyk-oauth-token-required.outputs.required == 'true' }}
-        uses: ministryofjustice/laa-reusable-github-actions/.github/actions/snyk-auth@6db001458db30ae747d9eb8eb25707ce52b359bc # v??? no versioning in the action currently
+        uses: ministryofjustice/laa-reusable-github-actions/.github/actions/snyk-auth@6db001458db30ae747d9eb8eb25707ce52b359bc # v??? no versioning on the action currently
         with:
           client_id: ${{ secrets.snyk_client_id }}
           client_secret: ${{ secrets.snyk_client_secret }}
