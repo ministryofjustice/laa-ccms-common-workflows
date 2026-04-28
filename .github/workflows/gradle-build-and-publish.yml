@@ -83,6 +83,8 @@ on:
     secrets:
       gh_token:
         required: true
+      gh_pat_token:
+        required: false
       aws_region:
         required: false
       github_app_id:
@@ -120,7 +122,8 @@ jobs:
     name: ${{ inputs.create_tag == 'true' && 'Create tag' || (inputs.publish_package == 'Build and publish package' && 'Scan image') || 'Build pipeline' }}
 
     env:
-      GITHUB_TOKEN: ${{ secrets.gh_token }}
+      GITHUB_TOKEN: ${{ secrets.gh_pat_token || secrets.gh_token }} # Prefer personal access token for authentication to avoid potential issues with GitHub App token permissions, but fall back to GH_TOKEN if PAT is not provided
+      GH_TOKEN: ${{ secrets.gh_token }} # Some actions expect GH_TOKEN specifically, so we set both GITHUB_TOKEN and GH_TOKEN to ensure compatibility
       AWS_REGION: ${{ secrets.aws_region }}
       GITHUB_APP_ID: ${{ secrets.github_app_id }}
       GITHUB_APP_PRIVATE_KEY: ${{ secrets.github_app_private_key }}
@@ -196,7 +199,7 @@ jobs:
           git config --global user.name "${{ inputs.github_bot_username }}[bot]"
           ./gradlew release -Prelease.useAutomaticVersion=true
         env:
-          GITHUB_TOKEN: ${{ steps.get_workflow_token.outputs.token || env.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.get_workflow_token.outputs.token || env.GH_TOKEN || env.GITHUB_TOKEN }}
 
       - name: Capture published version
         id: capture_published_version
