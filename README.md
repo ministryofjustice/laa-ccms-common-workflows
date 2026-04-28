@@ -376,7 +376,7 @@ jobs:
 | Input                  | Description                                                            | Required | 
 |------------------------|------------------------------------------------------------------------|----------|
 | `gh_token`             | The github token from the calling repository.                          | true     | 
-| `gh_pat_token`         | Private Access Token to enable access to packages fromt private repos. | false    |         
+| `gh_pat_token`         | Private Access Token to enable access to packages from private repos.  | false    |         
 | `pact_broker_url`      | The Pact Broker URL you want to test against or publish to.            | false    |         
 | `pact_broker_username` | The Pact Broker username. Required if you wish to publish results.     | false    |         
 | `pact_broker_password` | The Pact Broker password. Required if you wish to publish results.     | false    |         
