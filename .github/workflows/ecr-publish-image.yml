@@ -192,7 +192,8 @@ jobs:
         id: snyk
         continue-on-error: true
         env:
-          SNYK_TOKEN: ${{ steps.auth.outputs.token || env.SNYK_TOKEN }}
+          SNYK_OAUTH_TOKEN: ${{ steps.auth.outputs.token  }}
+          SNYK_TOKEN: ${{ env.SNYK_TOKEN }}
         run: |
           snyk container test ${{ steps.build-image.outputs.image_name }} \
             --org=legal-aid-agency \
