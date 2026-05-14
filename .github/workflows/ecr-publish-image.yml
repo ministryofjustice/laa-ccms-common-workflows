@@ -259,3 +259,25 @@ jobs:
             echo "Image published to ECR with version: \`${{ inputs.image_version }}\`" >> $GITHUB_STEP_SUMMARY
             echo "Published image version: ${{ inputs.image_version }}"
           fi
+
+      - name: Warn about deprecated SNYK_TOKEN usage
+        if: ${{ env.SNYK_TOKEN != '' }}
+        run: |
+          echo "::warning title=Deprecated SNYK_TOKEN::A SNYK_TOKEN was used to authenticate with Snyk. Snyk recommends OAuth 2.0 service accounts (SNYK_CLIENT_ID + SNYK_CLIENT_SECRET). SNYK_TOKEN support will be removed in a future release."
+
+      - name: Add migration guidance to job summary
+        if: ${{ env.SNYK_TOKEN != '' }}
+        run: |
+          {
+            echo "## ⚠️ Deprecated: SNYK_TOKEN"
+            echo ""
+            echo "Your workflow is using \`SNYK_TOKEN\` to authenticate with Snyk."
+            echo ""
+            echo "### Why migrate?"
+            echo "Snyk recommends OAuth 2.0 service accounts for CI/CD pipelines."
+            echo ""
+            echo "### How to migrate"
+            echo "Replace \`SNYK_TOKEN\` with \`SNYK_CLIENT_ID\` and \`SNYK_CLIENT_SECRET\`"
+            echo ""
+            echo "> 🚨 **\`SNYK_TOKEN\` support will be removed in a future release.**"
+          } >> $GITHUB_STEP_SUMMARY
