@@ -176,6 +176,7 @@ jobs:
           image_name=${REGISTRY}/${REPOSITORY}:${{ inputs.image_version }}
           if [ -n "${{ inputs.dockerfile_path }}" ]; then
             echo "Dockerfile provided, building via docker build"
+            ./gradlew assemble
             docker buildx build ${{ inputs.docker_build_args }} \
               -f "${{ inputs.dockerfile_path }}" \
               -t "$image_name" .
