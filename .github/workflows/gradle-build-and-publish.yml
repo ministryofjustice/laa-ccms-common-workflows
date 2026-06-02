@@ -121,7 +121,6 @@ jobs:
       ${{
         inputs.create_tag == 'true' && 'Create tag' ||
         inputs.publish_package == 'true' && 'Build and publish package' ||
-        inputs.scan_image == 'true' && 'Scan image' ||
         'Build pipeline'
       }}
 
