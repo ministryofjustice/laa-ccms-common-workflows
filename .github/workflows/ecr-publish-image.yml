@@ -75,6 +75,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
   id-token: write
   security-events: write
 
