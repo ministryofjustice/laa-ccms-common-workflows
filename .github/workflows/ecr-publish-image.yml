@@ -72,6 +72,8 @@ on:
         required: false
       binding_directory:
         required: false
+      tls_keystore_password:
+        required: false
     outputs:
       published_image_version:
         description: "The version of the published image."
@@ -94,6 +96,7 @@ jobs:
       ROOT_CERTIFICATE: ${{ secrets.root_certificate }}
       # SNYK_TOKEN will be set below if available, otherwise set by auth step
       SNYK_TOKEN: ${{ secrets.snyk_token }}
+      TLS_KEYSTORE_PASSWORD: ${{ secrets.TLS_KEYSTORE_PASSWORD }}
 
     outputs:
       published_image_version: ${{ steps.publish-image.outputs.published_image_version }}
