@@ -143,12 +143,12 @@ jobs:
 
       - name: Login ecr
         if: ${{ inputs.publish == 'true' && env.ECR_REGISTRY == '' }}
-        uses: aws-actions/amazon-ecr-login@fa648b43de3d4d023bcb3f89ed6940096949c419 # v2.1.5
+        uses: aws-actions/amazon-ecr-login@d539f0932e70871a027e9d5a9d8fc38589180a64 # v2.1.6
         id: login-ecr
 
       - name: Login ecr in different registry
         if: ${{ inputs.publish == 'true' && env.ECR_REGISTRY != '' }}
-        uses: aws-actions/amazon-ecr-login@fa648b43de3d4d023bcb3f89ed6940096949c419 # v2.1.5
+        uses: aws-actions/amazon-ecr-login@d539f0932e70871a027e9d5a9d8fc38589180a64 # v2.1.6
         with:
           registries: ${{ secrets.ecr_registry }}
         id: login-another-ecr
@@ -167,7 +167,7 @@ jobs:
           tree ${{ secrets.binding_directory }}
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
 
       - name: Build image
         id: build-image
@@ -255,7 +255,7 @@ jobs:
 
       - name: Upload image scan result to GitHub Code Scanning
         if: ${{ inputs.image_scan == 'true' && inputs.image_scan_upload_sarif == 'true'}}
-        uses: github/codeql-action/upload-sarif@87557b9c84dde89fdd9b10e88954ac2f4248e463 # v4.36.1
+        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
         with:
           sarif_file: snyk-report-cleansed.sarif
 
