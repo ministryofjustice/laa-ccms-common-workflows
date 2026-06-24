@@ -114,7 +114,6 @@ on:
 permissions:
   contents: write
   packages: write
-  id-token: write
 
 jobs:
   semgrep-scan:
