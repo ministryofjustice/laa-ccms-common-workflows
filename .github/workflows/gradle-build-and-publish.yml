@@ -203,8 +203,7 @@ jobs:
             inputs.reltype != 'none' &&
             (inputs.reltype != '' || github.ref == 'refs/heads/main')
           }}
-        uses: ministryofjustice/laa-ccms-common-workflows/.github/actions/compute-version@main
-        # TODO: pin to SHA after this branch is merged
+        uses: ministryofjustice/laa-ccms-common-workflows/.github/actions/compute-version@chore/LJCP-27_release_plugin # TODO: pin to SHA on merge
         with:
           bump: ${{ inputs.reltype != 'snapshot' && inputs.reltype || '' }}
 
