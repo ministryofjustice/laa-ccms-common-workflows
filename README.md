@@ -15,6 +15,7 @@ A library of commonly used GitHub actions and workflows used within LAA CCMS
     - [Pact and Publish](#pact-and-publish)
     - [Pact Provider Webhook](#pact-provider-webhook)
 - [Reusable actions](#reusable-actions---githubactions)
+    - [Compute version](#compute-version)
     - [Define Snyk arguments](#define-snyk-arguments)
     - [Remove prefix](#remove-prefix)
     - [Pact Can I Merge](#pact-can-i-merge)
@@ -29,81 +30,143 @@ Complete workflows that may consist of several other reusable workflows and acti
 
 Workflow: [`gradle-build-and-publish.yml`](.github/workflows/gradle-build-and-publish.yml)
 
-Runs a gradle build (or chosen build task), an optional integration test task and either creates a
-new tag or publishes an artifact.
+Runs a Gradle build (or chosen build task), optional integration tests, and handles versioning,
+tagging, artifact publishing, and GitHub Release creation — all driven by a single `reltype` input.
+
+Version computation is handled internally via the [`compute-version`](.github/actions/compute-version)
+composite action: it resolves the previous Release Tag, detects the Bump Type from
+[Conventional Commits](https://www.conventionalcommits.org/), and applies semver arithmetic.
 
 It is assumed that `build` includes unit tests.
-
-When using `create_tag`, it is advised to create a new workflow that is triggered by new tags to
-carry out post-tag tasks, such as image publishing and deployment.
 
 #### Pre-requisites
 
 - Java / Gradle repository
-- [Java or SpringBoot Plugin](https://github.com/ministryofjustice/laa-ccms-spring-boot-common)
-  enabled
-- [Gradle Release Plugin](https://github.com/researchgate/gradle-release) (included in the above).
+- A GitHub App with write access to repository contents (for tag creation)
 
-#### Example usage
+> **Note:** The [Gradle Release Plugin](https://github.com/researchgate/gradle-release) is no longer
+> required. If your repository uses it, see the
+> [LJCP-27 ADR](https://github.com/PhilDigitalJustice/template-updates/blob/main/docs/adrs/0002-git-tag-based-release-pipeline.md)
+> for migration guidance.
+
+#### `reltype` input
+
+The `reltype` input is the single control point for the release pipeline:
+
+| `reltype`              | Behaviour                                                                        |
+|------------------------|----------------------------------------------------------------------------------|
+| `patch` / `minor` / `major` | Creates Release Tag, publishes Maven artifact, creates GitHub Release        |
+| `snapshot`             | Computes `{next}-{hash}-SNAPSHOT` version and publishes artifact                 |
+| `none`                 | Build and test only — no publish, no tag                                         |
+| `''` (empty) on `main` | Auto-detects Bump Type from Conventional Commits; releases or skips accordingly  |
+| `''` (empty) elsewhere | Build and test only                                                              |
+
+#### Example: release pipeline (build-main.yml)
 
 ```yaml
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      reltype:
+        type: choice
+        default: "auto"
+        options: [ "auto", "none", "patch", "minor", "major" ]
+
 jobs:
-  build-and-publish-release:
-    uses: ministryofjustice/laa-ccms-common-workflows/.github/workflows/gradle-build-and-publish.yml@v1
+  release:
+    uses: ministryofjustice/laa-ccms-common-workflows/.github/workflows/gradle-build-and-publish.yml@main
     permissions:
-      contents: read
+      contents: write
       packages: write
     with:
-      integration_test_task: "integrationTest --tests '*IntegrationTest'"
-      create_tag: 'true'
-      junit_results_path: 'example-service/build/test-results'
-      junit_report_path: 'example-service/build/reports/tests'
-      checkstyle_report_path: 'example-service/build/reports/checkstyle'
-      jacoco_coverage_report_path: 'example-service/build/reports/jacoco'
+      java_version: '25'
+      java_distribution: 'corretto'
+      reltype: ${{ inputs.reltype != 'auto' && inputs.reltype || '' }}
+    secrets:
+      gh_token: ${{ secrets.GITHUB_TOKEN }}
+      github_app_id: ${{ vars.YOUR_APP_ID }}
+      github_app_private_key: ${{ secrets.YOUR_APP_KEY }}
+      github_app_organisation: ministryofjustice
+```
+
+To chain Docker image publishing after a release, use `published_artifact_version` output:
+
+```yaml
+  publish-image:
+    needs: release
+    if: ${{ needs.release.outputs.published_artifact_version != '' }}
+    uses: ministryofjustice/laa-ccms-common-workflows/.github/workflows/ecr-publish-image.yml@main
+    permissions:
+      contents: read
+      id-token: write
+    with:
+      image_version: ${{ needs.release.outputs.published_artifact_version }}
+      tag_with_latest: ${{ !contains(needs.release.outputs.published_artifact_version, 'SNAPSHOT') }}
+    secrets: inherit
+```
+
+#### Example: snapshot pipeline (build-feature.yml)
+
+```yaml
+on:
+  push:
+    branches-ignore: [ main ]
+
+jobs:
+  snapshot:
+    uses: ministryofjustice/laa-ccms-common-workflows/.github/workflows/gradle-build-and-publish.yml@main
+    permissions:
+      contents: write
+      packages: write
+    with:
+      reltype: 'snapshot'
     secrets:
       gh_token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 #### Inputs
 
-| Input                         | Description                                                                                                                                                             | Required | Default                    |
-|-------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|----------------------------|
-| `java_version`                | The Java JDK version to run build commands with.                                                                                                                        | false    | `25`                       |
-| `java_distribution`           | The Java JDK distribution.                                                                                                                                              | false    | `temurin`                  |
-| `build_command`               | The gradle build command to run.                                                                                                                                        | false    | `build`                    |
-| `build_args`                  | Additional build arguments to pass to the gradle `build` task.                                                                                                          | false    |                            |
-| `integration_test_task`       | The name of the gradle task to run integration tests (if separate from unit tests)                                                                                      | false    |                            |
-| `publish_package`             | Whether to publish build artifacts to the packages repository.                                                                                                          | false    | `false`                    |
-| `is_snapshot`                 | Whether to publish using a snapshot version generated by the `updateSnapshotVersion` task.                                                                              | false    | `false`                    |
-| `override_version`            | Specify a version to use to publish artifacts.                                                                                                                          | false    |                            |
-| `create_tag`                  | Runs the `release` task if `true` to create a new release tag. This disables package publishing (a separate `on: tag` workflow should be created to handle publishing). | false    | `false`                    |
-| `override_tagged_branch`      | Override the version from which the tag will be created (if different to `main`). Only applies when `create_tag=true`.                                                  | false    | `main`                     |
-| `junit_results`               | Whether junit is enabled for this project, and a results artifact should be produced.                                                                                   | false    | `true`                     |
-| `junit_results_path`          | The path of the junit test results to upload.                                                                                                                           | false    | `build/test-results`       |
-| `junit_report`                | Whether junit is enabled for this project, and a report artifact should be produced.                                                                                    | false    | `true`                     |
-| `junit_report_path`           | The path of the junit report to upload.                                                                                                                                 | false    | `build/reports/tests`      |
-| `checkstyle_report`           | Whether checkstyle is enabled for this project, and a report artifact should be produced.                                                                               | false    | `true`                     |
-| `checkstyle_report_path`      | The path of the checkstyle report to upload.                                                                                                                            | false    | `build/reports/checkstyle` |
-| `jacoco_coverage_report`      | Whether jacoco coverage is enabled for this project, and a report artifact should be produced.                                                                          | false    | `true`                     |
-| `jacoco_coverage_report_path` | The path of the jacoco report to upload.                                                                                                                                | false    | `build/reports/jacoco`     |
-| `github_bot_username`         | The bot username to use for commits made by this workflow.                                                                                                              | false    | `github-actions-bot`       |
-| `semgrep_check`               | Whether semgrep checking is enabled for this project. If enabled, runs before the main build run.                                                                       | false    | `false`                    |
+| Input                         | Description                                                                                                                      | Required | Default                    |
+|-------------------------------|----------------------------------------------------------------------------------------------------------------------------------|----------|----------------------------|
+| `reltype`                     | Release type: `major` \| `minor` \| `patch` \| `snapshot` \| `none` \| `''` (auto-detect on main). See table above.             | false    | `''`                       |
+| `java_version`                | The Java JDK version to run build commands with.                                                                                 | false    | `25`                       |
+| `java_distribution`           | The Java JDK distribution.                                                                                                       | false    | `temurin`                  |
+| `build_command`               | The Gradle build command to run.                                                                                                 | false    | `build`                    |
+| `build_args`                  | Additional build arguments to pass to the Gradle `build` task.                                                                   | false    |                            |
+| `integration_test_task`       | The name of the Gradle task to run integration tests (if separate from unit tests).                                              | false    |                            |
+| `override_version`            | Specify an explicit version to publish artifacts with. Takes precedence over computed version.                                    | false    |                            |
+| `junit_results`               | Whether a junit results artifact should be produced.                                                                             | false    | `true`                     |
+| `junit_results_path`          | The path of the junit test results to upload.                                                                                    | false    | `build/test-results`       |
+| `junit_report`                | Whether a junit report artifact should be produced.                                                                              | false    | `true`                     |
+| `junit_report_path`           | The path of the junit report to upload.                                                                                          | false    | `build/reports/tests`      |
+| `checkstyle_report`           | Whether a checkstyle report artifact should be produced.                                                                         | false    | `true`                     |
+| `checkstyle_report_path`      | The path of the checkstyle report to upload.                                                                                     | false    | `build/reports/checkstyle` |
+| `jacoco_coverage_report`      | Whether a jacoco coverage report artifact should be produced.                                                                    | false    | `true`                     |
+| `jacoco_coverage_report_path` | The path of the jacoco report to upload.                                                                                         | false    | `build/reports/jacoco`     |
+| `github_bot_username`         | The bot username for git commits made by this workflow.                                                                          | false    | `github-actions-bot`       |
+| `semgrep_check`               | Whether to run a Semgrep security scan before the main build.                                                                    | false    | `false`                    |
+| `publish_package` ⚠️          | **Deprecated.** Use `reltype` instead.                                                                                           | false    | `false`                    |
+| `create_tag` ⚠️               | **Deprecated.** Use `reltype=patch/minor/major` instead.                                                                         | false    | `false`                    |
+| `is_snapshot` ⚠️              | **Deprecated.** Use `reltype=snapshot` instead.                                                                                  | false    | `false`                    |
+| `override_tagged_branch` ⚠️   | **Deprecated.** Used only by the legacy `create_tag` path.                                                                      | false    | `main`                     |
 
 #### Secrets
 
-| Input                     | Description                                                                                           | Required | Default |
-|---------------------------|-------------------------------------------------------------------------------------------------------|----------|---------|
-| `gh_token`                | The github token from the calling repository.                                                         | true     |         |
-| `aws_region`              | The AWS Region to use for AWS CLI commands, if required for build tasks.                              | false    |         |
-| `github_app_id`           | The ID of the GitHub App to use for release commits - e.g. updating semantic version, creating a tag. | false    |         |
-| `github_app_private_key`  | The private key of the GitHub App to use for release commits.                                         | false    |         |
-| `github_app_organisation` | The organisation in which the GitHub App has been installed.                                          | false    |         |
+| Secret                    | Description                                                                                            | Required |
+|---------------------------|--------------------------------------------------------------------------------------------------------|----------|
+| `gh_token`                | The GitHub token from the calling repository.                                                          | true     |
+| `aws_region`              | The AWS Region, if required for build tasks.                                                           | false    |
+| `github_app_id`           | The ID of the GitHub App used for tag creation. Required for release paths.                            | false    |
+| `github_app_private_key`  | The private key of the GitHub App used for tag creation. Required for release paths.                   | false    |
+| `github_app_organisation` | The organisation in which the GitHub App is installed.                                                 | false    |
 
 #### Outputs
 
-| Output                       | Description                                                                     |
-|------------------------------|---------------------------------------------------------------------------------|
-| `published_artifact_version` | The version of the published artifact, or the current version if not published. |
+| Output                       | Description                                                        |
+|------------------------------|--------------------------------------------------------------------|
+| `published_artifact_version` | The published version (release or snapshot), or empty if skipped.  |
 
 ### Publish image to ECR
 
@@ -460,6 +523,34 @@ jobs:
 ## Reusable actions - [`.github/actions`](.github/actions)
 
 Individual reusable actions for common tasks.
+
+### Compute version
+
+Action: [`compute-version/action.yml`](.github/actions/compute-version/action.yml)
+
+Resolves the previous Release Tag, detects the Bump Type from Conventional Commits, and computes
+the next semver version. Used internally by `gradle-build-and-publish.yml` and available for use
+in custom pipelines.
+
+Tag resolution prefers `v{semver}` tags; falls back to `{repo-name}-{semver}` tags (old Gradle
+Release Plugin format) during migration.
+
+#### Inputs
+
+| Input  | Description                                                                                          | Required | Default |
+|--------|------------------------------------------------------------------------------------------------------|----------|---------|
+| `bump` | Override the detected bump type: `major` \| `minor` \| `patch` \| `none`. Empty = auto-detect.      | false    | `''`    |
+
+#### Outputs
+
+| Output         | Description                                                                  |
+|----------------|------------------------------------------------------------------------------|
+| `prev_tag`     | Last Release Tag found (e.g. `v1.2.3`), or `v0.0.0` if none.               |
+| `bump_type`    | Detected bump type: `major` \| `minor` \| `patch` \| `none`.                |
+| `major`        | Major component of the next version.                                         |
+| `minor`        | Minor component of the next version.                                         |
+| `patch`        | Patch component of the next version.                                         |
+| `next_version` | Next Release Tag (e.g. `v1.3.0`), or empty string when `bump_type=none`.    |
 
 ### Define Snyk arguments
 
