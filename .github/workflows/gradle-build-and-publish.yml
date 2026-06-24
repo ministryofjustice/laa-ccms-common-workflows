@@ -3,6 +3,16 @@ name: Gradle build and publish
 on:
   workflow_call:
     inputs:
+      # ── New input ──────────────────────────────────────────────────────────
+      reltype:
+        description: >
+          Release type: major | minor | patch | snapshot | none.
+          Leave empty to auto-detect from Conventional Commits on push to main,
+          or for build-only on all other triggers.
+        required: false
+        type: string
+        default: ''
+      # ── Existing inputs (unchanged) ────────────────────────────────────────
       java_version:
         required: false
         type: string
@@ -25,17 +35,9 @@ on:
         required: false
         type: string
         default: false
-      is_snapshot:
-        required: false
-        type: string
-        default: false
       override_version:
         required: false
         type: string
-      create_tag:
-        required: false
-        type: string
-        default: false
       override_tagged_branch:
         required: false
         type: string
@@ -80,6 +82,19 @@ on:
         required: false
         type: string
         default: false
+      # ── Deprecated inputs ──────────────────────────────────────────────────
+      # create_tag: superseded by reltype=patch/minor/major
+      create_tag:
+        description: "DEPRECATED: use reltype=patch/minor/major instead."
+        required: false
+        type: string
+        default: false
+      # is_snapshot: superseded by reltype=snapshot
+      is_snapshot:
+        description: "DEPRECATED: use reltype=snapshot instead."
+        required: false
+        type: string
+        default: false
     secrets:
       gh_token:
         required: true
@@ -99,6 +114,7 @@ on:
 permissions:
   contents: write
   packages: write
+  id-token: write
 
 jobs:
   semgrep-scan:
@@ -119,7 +135,10 @@ jobs:
 
     name: >-
       ${{
-        inputs.create_tag == 'true' && 'Create tag' ||
+        inputs.reltype == 'snapshot' && 'Build and publish snapshot' ||
+        (inputs.reltype == 'patch' || inputs.reltype == 'minor' || inputs.reltype == 'major') && format('Release ({0})', inputs.reltype) ||
+        inputs.reltype == '' && github.ref == 'refs/heads/main' && 'Release (auto-detect)' ||
+        inputs.create_tag == 'true' && 'Create tag (deprecated)' ||
         inputs.publish_package == 'true' && 'Build and publish package' ||
         'Build pipeline'
       }}
@@ -134,6 +153,19 @@ jobs:
       published_artifact_version: ${{ steps.capture_published_version.outputs.published_artifact_version }}
 
     steps:
+      # ── Deprecation warnings ────────────────────────────────────────────────
+      - name: Warn deprecated inputs
+        if: ${{ inputs.create_tag == 'true' || inputs.is_snapshot == 'true' }}
+        shell: bash
+        run: |
+          if [ "${{ inputs.create_tag }}" = "true" ]; then
+            echo "::warning::The create_tag input is deprecated and will be removed in a future version. Use reltype=patch/minor/major instead. See https://github.com/ministryofjustice/laa-ccms-common-workflows/blob/main/docs/adrs/0002-git-tag-based-release-pipeline.md"
+          fi
+          if [ "${{ inputs.is_snapshot }}" = "true" ]; then
+            echo "::warning::The is_snapshot input is deprecated and will be removed in a future version. Use reltype=snapshot instead. See https://github.com/ministryofjustice/laa-ccms-common-workflows/blob/main/docs/adrs/0002-git-tag-based-release-pipeline.md"
+          fi
+
+      # ── App token (used for tag push and release creation) ─────────────────
       - name: Get app token
         if: ${{ env.GITHUB_APP_ID != '' && env.GITHUB_APP_PRIVATE_KEY != '' }}
         id: get_workflow_token
@@ -142,13 +174,62 @@ jobs:
           app-id: ${{ secrets.github_app_id }}
           private-key: ${{ secrets.github_app_private_key }}
           owner: ${{ secrets.github_app_organisation }}
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-        if: ${{ inputs.create_tag != 'true' }}
+
+      # ── Checkout ────────────────────────────────────────────────────────────
+      # Old deprecated create_tag path: shallow checkout of the target branch.
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         if: ${{ inputs.create_tag == 'true' }}
         with:
           ref: ${{ inputs.override_tagged_branch }}
           token: ${{ steps.get_workflow_token.outputs.token || env.GITHUB_TOKEN }}
+
+      # New reltype path and all other cases: full history for version computation.
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        if: ${{ inputs.create_tag != 'true' }}
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          token: ${{ steps.get_workflow_token.outputs.token || env.GITHUB_TOKEN }}
+
+      # ── Compute version (new reltype path) ──────────────────────────────────
+      # Runs when reltype is explicit (patch/minor/major/snapshot) or when
+      # reltype is empty and we are on main (auto-detect).
+      # bump input overrides commit-based detection for explicit release types.
+      - name: Compute version
+        id: compute
+        if: >-
+          ${{
+            inputs.create_tag != 'true' &&
+            inputs.reltype != 'none' &&
+            (inputs.reltype != '' || github.ref == 'refs/heads/main')
+          }}
+        uses: ministryofjustice/laa-ccms-common-workflows/.github/actions/compute-version@main
+        # TODO: pin to SHA after this branch is merged
+        with:
+          bump: ${{ inputs.reltype != 'snapshot' && inputs.reltype || '' }}
+
+      # Compute SNAPSHOT version for reltype=snapshot.
+      - name: Compute snapshot version
+        id: snapshot
+        if: ${{ inputs.create_tag != 'true' && inputs.reltype == 'snapshot' }}
+        shell: bash
+        env:
+          BUMP_TYPE:  ${{ steps.compute.outputs.bump_type }}
+          MAJOR:      ${{ steps.compute.outputs.major }}
+          MINOR:      ${{ steps.compute.outputs.minor }}
+          PATCH:      ${{ steps.compute.outputs.patch }}
+        run: |
+          set -eu
+          BUMP="${BUMP_TYPE:-none}"
+          M="${MAJOR:-0}"; N="${MINOR:-0}"; P="${PATCH:-0}"
+          # For snapshots, always bump at least patch when no conventional commit found.
+          if [[ "$BUMP" == "none" ]]; then P=$((P+1)); fi
+          HASH=$(git rev-parse --short HEAD)
+          VERSION="${M}.${N}.${P}-${HASH}-SNAPSHOT"
+          echo "snapshot_version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Computed snapshot version: ${VERSION}"
+
+      # ── JDK / Gradle setup ──────────────────────────────────────────────────
       - name: Set up JDK ${{ inputs.java_version }}
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
         with:
@@ -158,6 +239,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
 
+      # ── Build and test ───────────────────────────────────────────────────────
       - name: Gradle ${{ inputs.build_command }}
         run: ./gradlew ${{ inputs.build_command }} ${{ inputs.build_args }}
 
@@ -174,12 +256,13 @@ jobs:
         if: ${{ inputs.integration_test_task != '' }}
         run: ./gradlew ${{ inputs.integration_test_task }}
 
-      - name: Publish snapshot package
+      # ── Deprecated publish paths ─────────────────────────────────────────────
+      - name: Publish snapshot package (deprecated)
         if: ${{ inputs.publish_package == 'true' && inputs.create_tag == 'false' && inputs.is_snapshot == 'true' }}
         run: ./gradlew updateSnapshotVersion && ./gradlew publish
 
-      - name: Publish package
-        if: ${{ inputs.publish_package == 'true' && inputs.create_tag == 'false' && inputs.is_snapshot != 'true' }}
+      - name: Publish package (deprecated)
+        if: ${{ inputs.publish_package == 'true' && inputs.create_tag == 'false' && inputs.is_snapshot != 'true' && inputs.reltype == '' }}
         env:
           OVERRIDE_VERSION: ${{ inputs.override_version }}
         run: |
@@ -189,7 +272,7 @@ jobs:
           fi
           ./gradlew publish ${PUBLISH_ARGS[@]}
 
-      - name: Create tag
+      - name: Create tag (deprecated)
         if: ${{ inputs.create_tag == 'true' }}
         run: |
           if [ -z "${{ steps.get_workflow_token.outputs.token }}" ]; then
@@ -203,23 +286,95 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.get_workflow_token.outputs.token || env.GITHUB_TOKEN }}
 
+      # ── New reltype: publish snapshot ─────────────────────────────────────────
+      - name: Publish snapshot
+        if: ${{ inputs.create_tag != 'true' && inputs.reltype == 'snapshot' && steps.snapshot.outputs.snapshot_version != '' }}
+        env:
+          VERSION: ${{ steps.snapshot.outputs.snapshot_version }}
+        run: ./gradlew publish -Pversion="${VERSION}"
+
+      # ── New reltype: create tag ───────────────────────────────────────────────
+      # Runs for explicit reltype=patch/minor/major or auto-detected release on main.
+      - name: Create Git tag
+        id: create-tag
+        if: >-
+          ${{
+            inputs.create_tag != 'true' &&
+            inputs.reltype != 'snapshot' &&
+            steps.compute.outputs.next_version != ''
+          }}
+        shell: bash
+        env:
+          GTAG:         ${{ steps.compute.outputs.next_version }}
+          BOT_USERNAME: ${{ inputs.github_bot_username }}
+          GIT_TOKEN:    ${{ steps.get_workflow_token.outputs.token || env.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          test -n "$GTAG"
+          git config user.name  "${BOT_USERNAME}[bot]"
+          git config user.email "${BOT_USERNAME}[bot]@users.noreply.github.com"
+          if git ls-remote --tags origin | grep -q "refs/tags/${GTAG}$"; then
+            echo "Tag ${GTAG} already exists on remote. Skipping."
+            echo "gtag=${GTAG}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Creating Git tag [${GTAG}]"
+          git tag -a "$GTAG" -m "Release ${GTAG}"
+          git push origin "$GTAG" || {
+            EXIT=$?
+            if git ls-remote --tags origin | grep -q "refs/tags/${GTAG}$"; then
+              echo "Tag ${GTAG} was already pushed (race condition). Skipping."
+            else
+              echo "::error::Failed to push tag ${GTAG} (exit ${EXIT})"
+              exit $EXIT
+            fi
+          }
+          echo "gtag=${GTAG}" >> "$GITHUB_OUTPUT"
+
+      # ── New reltype: publish release artifact ─────────────────────────────────
+      - name: Publish release artifact
+        if: ${{ steps.create-tag.outputs.gtag != '' }}
+        env:
+          VERSION: ${{ steps.create-tag.outputs.gtag }}
+        run: ./gradlew publish -Pversion="${VERSION#v}"
+
+      # ── New reltype: create GitHub Release ────────────────────────────────────
+      - name: Create GitHub Release
+        if: ${{ steps.create-tag.outputs.gtag != '' }}
+        env:
+          GH_TOKEN: ${{ steps.get_workflow_token.outputs.token || github.token }}
+          GTAG:     ${{ steps.create-tag.outputs.gtag }}
+        run: |
+          test -n "$GTAG"
+          if gh release view "$GTAG" >/dev/null 2>&1; then
+            echo "Release ${GTAG} already exists. Skipping."
+            exit 0
+          fi
+          echo "Creating GitHub Release [${GTAG}]"
+          gh release create "$GTAG" --verify-tag --title "$GTAG" --generate-notes
+
+      # ── Capture published version ─────────────────────────────────────────────
       - name: Capture published version
         id: capture_published_version
+        shell: bash
         run: |
-          if [[ -n "${{ inputs.override_version }}" ]]; then
-            VERSION=${{ inputs.override_version }}
+          set -eu
+          # Priority: release tag > snapshot > override_version > gradle.properties
+          if [[ -n "${{ steps.create-tag.outputs.gtag }}" ]]; then
+            VERSION="${{ steps.create-tag.outputs.gtag }}"
+            VERSION="${VERSION#v}"
+          elif [[ -n "${{ steps.snapshot.outputs.snapshot_version }}" ]]; then
+            VERSION="${{ steps.snapshot.outputs.snapshot_version }}"
+          elif [[ -n "${{ inputs.override_version }}" ]]; then
+            VERSION="${{ inputs.override_version }}"
           else
-            VERSION=$(grep "version=" gradle.properties | cut -d'=' -f2)
+            VERSION=$(grep "^version=" gradle.properties | cut -d'=' -f2)
           fi
-          echo "published_artifact_version=${VERSION}" >> $GITHUB_OUTPUT
-          if [ "${{ inputs.publish_package }}" = "true" ]; then
-            echo "Artifact published with version: \`${VERSION}\`" >> $GITHUB_STEP_SUMMARY
-            echo "Published artifact version: $VERSION"
-          else
-            echo "Current artifact version: \`${VERSION}\`" >> $GITHUB_STEP_SUMMARY
-            echo "Current artifact version: $VERSION"
-          fi
+          echo "published_artifact_version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Artifact version: \`${VERSION}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Artifact version: ${VERSION}"
 
+      # ── Upload reports ────────────────────────────────────────────────────────
       - name: Upload test results
         if: ${{ inputs.junit_results == 'true' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
