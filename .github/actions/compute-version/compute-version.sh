@@ -20,16 +20,22 @@ if [ -z "$PREV_TAG" ]; then
 fi
 PREV_TAG="${PREV_TAG:-v0.0.0}"
 
-if git rev-parse -q --verify "$PREV_TAG" >/dev/null 2>&1; then COMMITS="${PREV_TAG}..HEAD"; else COMMITS="HEAD"; fi
+if git rev-parse -q --verify "$PREV_TAG" >/dev/null 2>&1 && git merge-base --is-ancestor "$PREV_TAG" HEAD 2>/dev/null; then
+  COMMITS="${PREV_TAG}..HEAD"
+else
+  COMMITS="HEAD"
+fi
 
-# Bump-type detection: use BUMP_OVERRIDE if set, otherwise detect from Conventional Commits
-BUMP="none"
+# Bump-type detection: use BUMP_OVERRIDE if set, otherwise detect from Conventional Commits.
+# Defaults to 'patch' if no pattern matches, ensuring every push to main produces a release.
+# Use release_type=none to explicitly skip releasing.
+# Note: grep without -m1 avoids SIGPIPE/pipefail false-negatives on large repos.
+BUMP="patch"
 if [[ -n "${BUMP_OVERRIDE:-}" ]]; then
   BUMP="$BUMP_OVERRIDE"
-elif (git log --no-merges --format=%s  "$COMMITS" | grep -Eqm1 '^[a-z]+(\([^)]+\))?!: ');          then BUMP="major"
-elif (git log --no-merges --format=%B  "$COMMITS" | grep -Eqm1 'BREAKING[ -]CHANGE:');              then BUMP="major"
-elif (git log --no-merges --format=%s  "$COMMITS" | grep -Eqm1 '^feat(\([^)]+\))?: ');              then BUMP="minor"
-elif (git log --no-merges --format=%s  "$COMMITS" | grep -Eqm1 '^(fix|chore|refactor)(\([^)]+\))?: '); then BUMP="patch"
+elif (git log --no-merges --format=%s  "$COMMITS" | grep -Eq '^[a-z]+(\([^)]+\))?!: ');          then BUMP="major"
+elif (git log --no-merges --format=%B  "$COMMITS" | grep -Eq 'BREAKING[ -]CHANGE:');              then BUMP="major"
+elif (git log --no-merges --format=%s  "$COMMITS" | grep -Eq '^feat(\([^)]+\))?: ');              then BUMP="minor"
 fi
 
 # Semver arithmetic

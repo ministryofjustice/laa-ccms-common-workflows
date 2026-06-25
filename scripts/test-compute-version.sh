@@ -94,15 +94,15 @@ OUT=$(run_script "$D")
 assert_eq "bump_type=patch"     "patch"   "$(parse_output "$OUT" bump_type)"
 assert_eq "next_version=v1.2.4" "v1.2.4"  "$(parse_output "$OUT" next_version)"
 
-# ── TEST 5: no releasable commits → none ──────────────────────────────────────
-echo "TEST 5: no releasable commits → none"
+# ── TEST 5: no conventional commit prefix → defaults to patch ────────────────
+echo "TEST 5: no conventional commit prefix → defaults to patch"
 D=$(make_repo)
 commit "$D" "chore: init"
 tag_v  "$D" "v1.2.3"
 commit "$D" "docs: update readme"
 OUT=$(run_script "$D")
-assert_eq "bump_type=none"     "none" "$(parse_output "$OUT" bump_type)"
-assert_eq "next_version empty" ""     "$(parse_output "$OUT" next_version)"
+assert_eq "bump_type=patch"      "patch"   "$(parse_output "$OUT" bump_type)"
+assert_eq "next_version=v1.2.4"  "v1.2.4"  "$(parse_output "$OUT" next_version)"
 
 # ── TEST 6: no v* tags, old {repo-name}-1.2.3 tag → fallback ─────────────────
 echo "TEST 6: old-format tag fallback"
@@ -156,6 +156,22 @@ OUT=$(run_script "$D")
 assert_eq "prev_tag resolved"   "v1.0.7" "$(parse_output "$OUT" prev_tag)"
 assert_eq "bump_type=patch"     "patch"   "$(parse_output "$OUT" bump_type)"
 assert_eq "next_version=v1.0.8" "v1.0.8"  "$(parse_output "$OUT" next_version)"
+
+# ── TEST 11: tag exists but not reachable from HEAD (e.g. tag on release branch) ─
+echo "TEST 11: tag not reachable from HEAD → fall back to v0.0.0, scan all commits"
+D=$(make_repo)
+# Create tag on an orphan branch (simulates tag created on a separate release branch)
+git -C "$D" checkout -q --orphan orphan-release
+commit "$D" "chore: release"
+git -C "$D" tag -a "1.0.7" -m "release"
+# Switch to a fresh main with no shared history and a conventional commit
+git -C "$D" checkout -q --orphan main
+commit "$D" "fix: first fix on main"
+OUT=$(run_script "$D")
+# Tag not reachable from main → git describe can't find it → defaults to v0.0.0
+assert_eq "prev_tag=v0.0.0"     "v0.0.0"  "$(parse_output "$OUT" prev_tag)"
+assert_eq "bump_type=patch"      "patch"    "$(parse_output "$OUT" bump_type)"
+assert_eq "next_version=v0.0.1"  "v0.0.1"  "$(parse_output "$OUT" next_version)"
 
 echo ""
 echo "Results: ${PASS} passed, ${FAIL} failed"

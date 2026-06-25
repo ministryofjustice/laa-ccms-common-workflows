@@ -14,7 +14,7 @@ on:
             feat!: / fix!: / BREAKING CHANGE  →  major (x.0.0)
             feat:                              →  minor (0.x.0)
             fix: / chore: / refactor:          →  patch (0.0.x)
-            anything else                      →  none  (no release)
+            anything else                      →  patch (default)
 
           Use 'snapshot' on PR/feature branches for a pre-release build.
           Use 'none' to run tests only with no tag or publish step.
