@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       # ── New input ──────────────────────────────────────────────────────────
-      reltype:
+      release_type:
         description: >
           Release type: major | minor | patch | snapshot | none.
           Leave empty to auto-detect from Conventional Commits on push to main,
@@ -83,15 +83,15 @@ on:
         type: string
         default: false
       # ── Deprecated inputs ──────────────────────────────────────────────────
-      # create_tag: superseded by reltype=patch/minor/major
+      # create_tag: superseded by release_type=patch/minor/major
       create_tag:
-        description: "DEPRECATED: use reltype=patch/minor/major instead."
+        description: "DEPRECATED: use release_type=patch/minor/major instead."
         required: false
         type: string
         default: false
-      # is_snapshot: superseded by reltype=snapshot
+      # is_snapshot: superseded by release_type=snapshot
       is_snapshot:
-        description: "DEPRECATED: use reltype=snapshot instead."
+        description: "DEPRECATED: use release_type=snapshot instead."
         required: false
         type: string
         default: false
@@ -134,9 +134,9 @@ jobs:
 
     name: >-
       ${{
-        inputs.reltype == 'snapshot' && 'Build and publish snapshot' ||
-        (inputs.reltype == 'patch' || inputs.reltype == 'minor' || inputs.reltype == 'major') && format('Release ({0})', inputs.reltype) ||
-        inputs.reltype == '' && github.ref == 'refs/heads/main' && 'Release (auto-detect)' ||
+        inputs.release_type == 'snapshot' && 'Build and publish snapshot' ||
+        (inputs.release_type == 'patch' || inputs.release_type == 'minor' || inputs.release_type == 'major') && format('Release ({0})', inputs.release_type) ||
+        inputs.release_type == '' && github.ref == 'refs/heads/main' && 'Release (auto-detect)' ||
         inputs.create_tag == 'true' && 'Create tag (deprecated)' ||
         inputs.publish_package == 'true' && 'Build and publish package' ||
         'Build pipeline'
@@ -158,10 +158,10 @@ jobs:
         shell: bash
         run: |
           if [ "${{ inputs.create_tag }}" = "true" ]; then
-            echo "::warning::The create_tag input is deprecated and will be removed in a future version. Use reltype=patch/minor/major instead. See https://github.com/ministryofjustice/laa-ccms-common-workflows/blob/main/docs/adrs/0002-git-tag-based-release-pipeline.md"
+            echo "::warning::The create_tag input is deprecated and will be removed in a future version. Use release_type=patch/minor/major instead. See https://github.com/ministryofjustice/laa-ccms-common-workflows/blob/main/docs/adrs/0002-git-tag-based-release-pipeline.md"
           fi
           if [ "${{ inputs.is_snapshot }}" = "true" ]; then
-            echo "::warning::The is_snapshot input is deprecated and will be removed in a future version. Use reltype=snapshot instead. See https://github.com/ministryofjustice/laa-ccms-common-workflows/blob/main/docs/adrs/0002-git-tag-based-release-pipeline.md"
+            echo "::warning::The is_snapshot input is deprecated and will be removed in a future version. Use release_type=snapshot instead. See https://github.com/ministryofjustice/laa-ccms-common-workflows/blob/main/docs/adrs/0002-git-tag-based-release-pipeline.md"
           fi
 
       # ── App token (used for tag push and release creation) ─────────────────
@@ -182,7 +182,7 @@ jobs:
           ref: ${{ inputs.override_tagged_branch }}
           token: ${{ steps.get_workflow_token.outputs.token || env.GITHUB_TOKEN }}
 
-      # New reltype path and all other cases: full history for version computation.
+      # New release_type path and all other cases: full history for version computation.
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         if: ${{ inputs.create_tag != 'true' }}
         with:
@@ -190,26 +190,26 @@ jobs:
           fetch-tags: true
           token: ${{ steps.get_workflow_token.outputs.token || env.GITHUB_TOKEN }}
 
-      # ── Compute version (new reltype path) ──────────────────────────────────
-      # Runs when reltype is explicit (patch/minor/major/snapshot) or when
-      # reltype is empty and we are on main (auto-detect).
+      # ── Compute version (new release_type path) ──────────────────────────────────
+      # Runs when release_type is explicit (patch/minor/major/snapshot) or when
+      # release_type is empty and we are on main (auto-detect).
       # bump input overrides commit-based detection for explicit release types.
       - name: Compute version
         id: compute
         if: >-
           ${{
             inputs.create_tag != 'true' &&
-            inputs.reltype != 'none' &&
-            (inputs.reltype != '' || github.ref == 'refs/heads/main')
+            inputs.release_type != 'none' &&
+            (inputs.release_type != '' || github.ref == 'refs/heads/main')
           }}
         uses: ministryofjustice/laa-ccms-common-workflows/.github/actions/compute-version@chore/LJCP-27_release_plugin # TODO: pin to SHA on merge
         with:
-          bump: ${{ inputs.reltype != 'snapshot' && inputs.reltype || '' }}
+          bump: ${{ inputs.release_type != 'snapshot' && inputs.release_type || '' }}
 
-      # Compute SNAPSHOT version for reltype=snapshot.
+      # Compute SNAPSHOT version for release_type=snapshot.
       - name: Compute snapshot version
         id: snapshot
-        if: ${{ inputs.create_tag != 'true' && inputs.reltype == 'snapshot' }}
+        if: ${{ inputs.create_tag != 'true' && inputs.release_type == 'snapshot' }}
         shell: bash
         env:
           BUMP_TYPE:  ${{ steps.compute.outputs.bump_type }}
@@ -260,7 +260,7 @@ jobs:
         run: ./gradlew updateSnapshotVersion && ./gradlew publish
 
       - name: Publish package (deprecated)
-        if: ${{ inputs.publish_package == 'true' && inputs.create_tag == 'false' && inputs.is_snapshot != 'true' && inputs.reltype == '' }}
+        if: ${{ inputs.publish_package == 'true' && inputs.create_tag == 'false' && inputs.is_snapshot != 'true' && inputs.release_type == '' }}
         env:
           OVERRIDE_VERSION: ${{ inputs.override_version }}
         run: |
@@ -284,21 +284,21 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.get_workflow_token.outputs.token || env.GITHUB_TOKEN }}
 
-      # ── New reltype: publish snapshot ─────────────────────────────────────────
+      # ── New release_type: publish snapshot ─────────────────────────────────────────
       - name: Publish snapshot
-        if: ${{ inputs.create_tag != 'true' && inputs.reltype == 'snapshot' && steps.snapshot.outputs.snapshot_version != '' }}
+        if: ${{ inputs.create_tag != 'true' && inputs.release_type == 'snapshot' && steps.snapshot.outputs.snapshot_version != '' }}
         env:
           VERSION: ${{ steps.snapshot.outputs.snapshot_version }}
         run: ./gradlew publish -Pversion="${VERSION}"
 
-      # ── New reltype: create tag ───────────────────────────────────────────────
-      # Runs for explicit reltype=patch/minor/major or auto-detected release on main.
+      # ── New release_type: create tag ───────────────────────────────────────────────
+      # Runs for explicit release_type=patch/minor/major or auto-detected release on main.
       - name: Create Git tag
         id: create-tag
         if: >-
           ${{
             inputs.create_tag != 'true' &&
-            inputs.reltype != 'snapshot' &&
+            inputs.release_type != 'snapshot' &&
             steps.compute.outputs.next_version != ''
           }}
         shell: bash
@@ -329,14 +329,14 @@ jobs:
           }
           echo "gtag=${GTAG}" >> "$GITHUB_OUTPUT"
 
-      # ── New reltype: publish release artifact ─────────────────────────────────
+      # ── New release_type: publish release artifact ─────────────────────────────────
       - name: Publish release artifact
         if: ${{ steps.create-tag.outputs.gtag != '' }}
         env:
           VERSION: ${{ steps.create-tag.outputs.gtag }}
         run: ./gradlew publish -Pversion="${VERSION#v}"
 
-      # ── New reltype: create GitHub Release ────────────────────────────────────
+      # ── New release_type: create GitHub Release ────────────────────────────────────
       - name: Create GitHub Release
         if: ${{ steps.create-tag.outputs.gtag != '' }}
         env:
