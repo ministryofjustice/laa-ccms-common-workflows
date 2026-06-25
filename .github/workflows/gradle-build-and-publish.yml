@@ -9,6 +9,15 @@ on:
           Release type: major | minor | patch | snapshot | none.
           Leave empty to auto-detect from Conventional Commits on push to main,
           or for build-only on all other triggers.
+
+          Auto-detect rules (Conventional Commits):
+            feat!: / fix!: / BREAKING CHANGE  →  major (x.0.0)
+            feat:                              →  minor (0.x.0)
+            fix: / chore: / refactor:          →  patch (0.0.x)
+            anything else                      →  none  (no release)
+
+          Use 'snapshot' on PR/feature branches for a pre-release build.
+          Use 'none' to run tests only with no tag or publish step.
         required: false
         type: string
         default: ''
