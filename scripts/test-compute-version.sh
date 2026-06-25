@@ -146,6 +146,17 @@ OUT=$(BUMP_OVERRIDE=minor run_script "$D")
 assert_eq "bump_type=minor"     "minor"   "$(parse_output "$OUT" bump_type)"
 assert_eq "next_version=v1.3.0" "v1.3.0"  "$(parse_output "$OUT" next_version)"
 
+# ── TEST 10: bare semver tag (no v-prefix, no repo-name prefix) → fallback ────
+echo "TEST 10: bare semver tag fallback (e.g. 1.0.7)"
+D=$(make_repo)
+commit "$D" "chore: init"
+git -C "$D" tag -a "1.0.7" -m "release"
+commit "$D" "fix: something"
+OUT=$(run_script "$D")
+assert_eq "prev_tag resolved"   "v1.0.7" "$(parse_output "$OUT" prev_tag)"
+assert_eq "bump_type=patch"     "patch"   "$(parse_output "$OUT" bump_type)"
+assert_eq "next_version=v1.0.8" "v1.0.8"  "$(parse_output "$OUT" next_version)"
+
 echo ""
 echo "Results: ${PASS} passed, ${FAIL} failed"
 [[ $FAIL -eq 0 ]]

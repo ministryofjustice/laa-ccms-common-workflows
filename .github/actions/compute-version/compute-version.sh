@@ -7,12 +7,16 @@ set -euo pipefail
 REPO_NAME="$(basename "$(git rev-parse --show-toplevel)")"
 
 # Tag resolution: prefer v-prefix tags (new scheme); fall back to {repo-name}-{version}
-# (old Gradle Release Plugin scheme). Fallback can be removed once all repositories
-# have at least one v-prefix Release Tag.
+# or bare semver tags (old Gradle Release Plugin schemes). Fallbacks can be removed once
+# all repositories have at least one v-prefix Release Tag.
 PREV_TAG="$(git describe --tags --abbrev=0 --match "v[0-9]*" 2>/dev/null || true)"
 if [ -z "$PREV_TAG" ]; then
   OLD_TAG="$(git describe --tags --abbrev=0 --match "${REPO_NAME}-[0-9]*" 2>/dev/null || true)"
   if [ -n "$OLD_TAG" ]; then PREV_TAG="v${OLD_TAG#${REPO_NAME}-}"; fi
+fi
+if [ -z "$PREV_TAG" ]; then
+  BARE_TAG="$(git describe --tags --abbrev=0 --match "[0-9]*" 2>/dev/null || true)"
+  if [ -n "$BARE_TAG" ]; then PREV_TAG="v${BARE_TAG}"; fi
 fi
 PREV_TAG="${PREV_TAG:-v0.0.0}"
 
