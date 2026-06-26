@@ -211,7 +211,7 @@ jobs:
             inputs.release_type != 'none' &&
             (inputs.release_type != '' || github.ref == 'refs/heads/main')
           }}
-        uses: ministryofjustice/laa-ccms-common-workflows/.github/actions/compute-version@chore/LJCP-27_release_plugin # TODO: pin to SHA on merge
+        uses: ministryofjustice/laa-ccms-common-workflows/.github/actions/compute-version@main
         with:
           bump: ${{ inputs.release_type != 'snapshot' && inputs.release_type || '' }}
 
