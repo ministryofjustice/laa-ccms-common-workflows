@@ -1,0 +1,47 @@
+name: "Compute version"
+description: >
+  Resolves the previous Release Tag, detects the Bump Type from Conventional Commits,
+  and computes the next semver version. Used by gradle-build-and-publish.yml and
+  consuming repositories to drive the git-tag-based Release Pipeline.
+
+  Tag resolution: prefers v{semver} tags (new scheme); falls back to {repo-name}-{semver}
+  tags (old Gradle Release Plugin scheme). The fallback can be removed once all
+  repositories have at least one v-prefix Release Tag.
+
+inputs:
+  bump:
+    description: >
+      Override the detected bump type. One of: major | minor | patch | none.
+      When empty (default), bump type is auto-detected from Conventional Commits.
+    required: false
+    default: ''
+
+outputs:
+  prev_tag:
+    description: "Last Release Tag found (e.g. v1.2.3), or v0.0.0 if none."
+    value: ${{ steps.compute.outputs.prev_tag }}
+  bump_type:
+    description: "Detected bump type: major | minor | patch | none."
+    value: ${{ steps.compute.outputs.bump_type }}
+  major:
+    description: "Major component of the next version (or current if bump_type=none)."
+    value: ${{ steps.compute.outputs.major }}
+  minor:
+    description: "Minor component of the next version (or current if bump_type=none)."
+    value: ${{ steps.compute.outputs.minor }}
+  patch:
+    description: "Patch component of the next version (or current if bump_type=none)."
+    value: ${{ steps.compute.outputs.patch }}
+  next_version:
+    description: "Next Release Tag (e.g. v1.3.0), or empty string when bump_type=none."
+    value: ${{ steps.compute.outputs.next_version }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Compute version
+      id: compute
+      shell: bash
+      env:
+        BUMP_OVERRIDE: ${{ inputs.bump }}
+      run: bash "${{ github.action_path }}/compute-version.sh"
