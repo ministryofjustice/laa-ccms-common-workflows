@@ -31,7 +31,7 @@ Complete workflows that may consist of several other reusable workflows and acti
 Workflow: [`gradle-build-and-publish.yml`](.github/workflows/gradle-build-and-publish.yml)
 
 Runs a Gradle build (or chosen build task), optional integration tests, and handles versioning,
-tagging, artifact publishing, and GitHub Release creation — all driven by a single `reltype` input.
+tagging, artifact publishing, and GitHub Release creation — all driven by a single `release_type` input.
 
 Version computation is handled internally via the [`compute-version`](.github/actions/compute-version)
 composite action: it resolves the previous Release Tag, detects the Bump Type from
@@ -46,20 +46,49 @@ It is assumed that `build` includes unit tests.
 
 > **Note:** The [Gradle Release Plugin](https://github.com/researchgate/gradle-release) is no longer
 > required. If your repository uses it, see the
-> [LJCP-27 ADR](https://github.com/PhilDigitalJustice/template-updates/blob/main/docs/adrs/0002-git-tag-based-release-pipeline.md)
-> for migration guidance.
+> [migration guide](https://github.com/ministryofjustice/laa-ccms-common-workflows/wiki/Migrating-from-the-Gradle-Release-Plugin)
+> for step-by-step instructions.
 
-#### `reltype` input
+#### `release_type` input
 
-The `reltype` input is the single control point for the release pipeline:
+The `release_type` input is the single control point for the release pipeline:
 
-| `reltype`              | Behaviour                                                                        |
-|------------------------|----------------------------------------------------------------------------------|
-| `patch` / `minor` / `major` | Creates Release Tag, publishes Maven artifact, creates GitHub Release        |
-| `snapshot`             | Computes `{next}-{hash}-SNAPSHOT` version and publishes artifact                 |
-| `none`                 | Build and test only — no publish, no tag                                         |
-| `''` (empty) on `main` | Auto-detects Bump Type from Conventional Commits; releases or skips accordingly  |
-| `''` (empty) elsewhere | Build and test only                                                              |
+| `release_type`              | Behaviour                                                                         |
+|-----------------------------|-----------------------------------------------------------------------------------|
+| `patch` / `minor` / `major` | Creates Release Tag, publishes Maven artifact, creates GitHub Release             |
+| `snapshot`                  | Computes `{next}-{hash}-SNAPSHOT` version and publishes artifact                  |
+| `none`                      | Build and test only — no publish, no tag                                          |
+| `''` (empty) on `main`      | Auto-detects Bump Type from Conventional Commits; defaults to `patch`             |
+| `''` (empty) elsewhere      | Build and test only                                                               |
+
+#### Conventional Commits and versioning
+
+When `release_type` is empty on `main`, the pipeline scans commit messages since the last Release Tag
+and determines the bump type automatically:
+
+| Commit prefix                              | Bump type | Example version  |
+|--------------------------------------------|-----------|------------------|
+| `feat!:` / `fix!:` / `BREAKING CHANGE:`   | `major`   | `1.0.0 → 2.0.0`  |
+| `feat:`                                    | `minor`   | `1.0.0 → 1.1.0`  |
+| `fix:` / `chore:` / `refactor:`            | `patch`   | `1.0.0 → 1.0.1`  |
+| anything else (or no commits matched)      | `patch`   | `1.0.0 → 1.0.1`  |
+
+**PR title is the version signal.** Because most repositories squash-merge, the PR title becomes
+the commit message on `main`. The `lint-pr-title.yml` workflow enforces Conventional Commits format
+on PR titles so the signal is always present.
+
+Conventional Commits format: `<type>[optional scope]: <description>`
+
+```
+feat: add new claim endpoint          → minor bump
+feat(claims): add new claim endpoint  → minor bump (with scope)
+fix: correct null check on submit     → patch bump
+chore: update dependencies            → patch bump
+feat!: remove v1 API endpoints        → major bump (breaking change)
+```
+
+Scope is optional. Use it to reference a Jira ticket (`fix(LJCP-42): ...`) or a component.
+A PR covering multiple change types — pick the highest bump that applies.
 
 #### Example: release pipeline (build-main.yml)
 
@@ -69,7 +98,7 @@ on:
     branches: [ main ]
   workflow_dispatch:
     inputs:
-      reltype:
+      release_type:
         type: choice
         default: "auto"
         options: [ "auto", "none", "patch", "minor", "major" ]
@@ -83,7 +112,7 @@ jobs:
     with:
       java_version: '25'
       java_distribution: 'corretto'
-      reltype: ${{ inputs.reltype != 'auto' && inputs.reltype || '' }}
+      release_type: ${{ inputs.release_type != 'auto' && inputs.release_type || '' }}
     secrets:
       gh_token: ${{ secrets.GITHUB_TOKEN }}
       github_app_id: ${{ vars.YOUR_APP_ID }}
@@ -121,7 +150,7 @@ jobs:
       contents: write
       packages: write
     with:
-      reltype: 'snapshot'
+      release_type: 'snapshot'
     secrets:
       gh_token: ${{ secrets.GITHUB_TOKEN }}
 ```
@@ -130,7 +159,7 @@ jobs:
 
 | Input                         | Description                                                                                                                      | Required | Default                    |
 |-------------------------------|----------------------------------------------------------------------------------------------------------------------------------|----------|----------------------------|
-| `reltype`                     | Release type: `major` \| `minor` \| `patch` \| `snapshot` \| `none` \| `''` (auto-detect on main). See table above.             | false    | `''`                       |
+| `release_type`                     | Release type: `major` \| `minor` \| `patch` \| `snapshot` \| `none` \| `''` (auto-detect on main). See table above.             | false    | `''`                       |
 | `java_version`                | The Java JDK version to run build commands with.                                                                                 | false    | `25`                       |
 | `java_distribution`           | The Java JDK distribution.                                                                                                       | false    | `temurin`                  |
 | `build_command`               | The Gradle build command to run.                                                                                                 | false    | `build`                    |
@@ -147,9 +176,9 @@ jobs:
 | `jacoco_coverage_report_path` | The path of the jacoco report to upload.                                                                                         | false    | `build/reports/jacoco`     |
 | `github_bot_username`         | The bot username for git commits made by this workflow.                                                                          | false    | `github-actions-bot`       |
 | `semgrep_check`               | Whether to run a Semgrep security scan before the main build.                                                                    | false    | `false`                    |
-| `publish_package` ⚠️          | **Deprecated.** Use `reltype` instead.                                                                                           | false    | `false`                    |
-| `create_tag` ⚠️               | **Deprecated.** Use `reltype=patch/minor/major` instead.                                                                         | false    | `false`                    |
-| `is_snapshot` ⚠️              | **Deprecated.** Use `reltype=snapshot` instead.                                                                                  | false    | `false`                    |
+| `publish_package` ⚠️          | **Deprecated.** Use `release_type` instead.                                                                                           | false    | `false`                    |
+| `create_tag` ⚠️               | **Deprecated.** Use `release_type=patch/minor/major` instead.                                                                         | false    | `false`                    |
+| `is_snapshot` ⚠️              | **Deprecated.** Use `release_type=snapshot` instead.                                                                                  | false    | `false`                    |
 | `override_tagged_branch` ⚠️   | **Deprecated.** Used only by the legacy `create_tag` path.                                                                      | false    | `main`                     |
 
 #### Secrets
