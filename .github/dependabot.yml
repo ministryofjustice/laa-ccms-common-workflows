@@ -17,3 +17,15 @@ updates:
       github-actions:
         patterns:
           - "**"
+
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    cooldown:
+      default-days: 7
+    groups:
+      java-dependencies:
+         patterns:
+           - "**"
+           
