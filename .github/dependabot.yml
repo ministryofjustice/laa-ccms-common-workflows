@@ -7,17 +7,6 @@
 version: 2
 
 updates:
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "daily"
-    cooldown:
-      default-days: 7
-    groups:
-      github-actions:
-        patterns:
-          - "**"
-
   - package-ecosystem: "gradle"
     directory: "/"
     schedule:
@@ -28,4 +17,13 @@ updates:
       java-dependencies:
          patterns:
            - "**"
-           
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions-dependencies:
+        patterns:
+          - "**"
