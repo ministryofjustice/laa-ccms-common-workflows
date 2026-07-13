@@ -8,6 +8,7 @@ A library of commonly used GitHub actions and workflows used within LAA CCMS
 
 - [Reusable workflows](#reusable-workflows---githubworkflows)
     - [Gradle build & publish](#gradle-build--publish)
+    - [Compute snapshot version](#compute-snapshot-version)
     - [Publish image to ECR](#publish-image-to-ecr)
     - [Snyk vulnerability scan](#snyk-vulnerability-scan)
     - [Snyk vulnerability report](#snyk-vulnerability-report)
@@ -37,6 +38,12 @@ Version computation is handled internally via the [`compute-version`](.github/ac
 composite action: it resolves the previous Release Tag, detects the Bump Type from
 [Conventional Commits](https://www.conventionalcommits.org/), and applies semver arithmetic.
 
+Once a version is resolved (Release Tag, snapshot, or `override_version`), it is written into
+`gradle.properties` before the build runs, so it's reflected in any artifact metadata produced
+during the build (jar manifest, build-info, etc.), not just the later publish step. This step is
+skipped for the deprecated `create_tag`/`is_snapshot` inputs, which invoke the Gradle Release
+Plugin and manage `gradle.properties` themselves.
+
 It is assumed that `build` includes unit tests.
 
 #### Pre-requisites
@@ -57,7 +64,8 @@ The `release_type` input is the single control point for the release pipeline:
 |-----------------------------|-----------------------------------------------------------------------------------|
 | `patch` / `minor` / `major` | Creates Release Tag, publishes Maven artifact, creates GitHub Release             |
 | `snapshot`                  | Computes `{next}-{hash}-SNAPSHOT` version and publishes artifact                  |
-| `none`                      | Build and test only — no publish, no tag                                          |
+| `override_version`          | Publishes artifact using caller-supplied `override_version` — no tag, no GitHub Release |
+| `none`                      | Build and test only — no publish, no tag. If `override_version` is set, it's still stamped into `gradle.properties` |
 | `''` (empty) on `main`      | Auto-detects Bump Type from Conventional Commits; defaults to `patch`             |
 | `''` (empty) elsewhere      | Build and test only                                                               |
 
@@ -155,11 +163,54 @@ jobs:
       gh_token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
+#### Example: caller-managed version pipeline
+
+Callers that compute their own version (e.g. to reuse it across a Docker image build, or to match
+a versioning scheme not covered by `release_type`'s auto-detect/snapshot logic) can pair
+[`compute-snapshot-version.yml`](#compute-snapshot-version) with `release_type: 'override_version'` and
+`override_version`. This publishes the artifact with no internal version computation, tagging, or
+GitHub Release:
+
+```yaml
+on:
+  push:
+    branches-ignore: [ main ]
+
+jobs:
+  compute-snapshot-version:
+    uses: ministryofjustice/laa-ccms-common-workflows/.github/workflows/compute-snapshot-version.yml@main
+    permissions:
+      contents: read
+
+  build:
+    needs: compute-snapshot-version
+    uses: ministryofjustice/laa-ccms-common-workflows/.github/workflows/gradle-build-and-publish.yml@main
+    permissions:
+      contents: write
+      packages: write
+    with:
+      release_type: 'override_version'
+      override_version: ${{ needs.compute-snapshot-version.outputs.snapshot_version }}
+    secrets:
+      gh_token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+For a **service repo** that builds a JAR only to run it (not to publish it to Maven — e.g. a Docker
+image build), pair the same `compute-snapshot-version.yml` output with `release_type: 'none'`
+instead. The version is still stamped into `gradle.properties` (useful for `/actuator/info`, jar
+manifest, image labels) but no Maven publish happens:
+
+```yaml
+    with:
+      release_type: 'none'
+      override_version: ${{ needs.compute-snapshot-version.outputs.snapshot_version }}
+```
+
 #### Inputs
 
 | Input                         | Description                                                                                                                      | Required | Default                    |
 |-------------------------------|----------------------------------------------------------------------------------------------------------------------------------|----------|----------------------------|
-| `release_type`                     | Release type: `major` \| `minor` \| `patch` \| `snapshot` \| `none` \| `''` (auto-detect on main). See table above.             | false    | `''`                       |
+| `release_type`                     | Release type: `major` \| `minor` \| `patch` \| `snapshot` \| `override_version` \| `none` \| `''` (auto-detect on main). See table above. | false    | `''`                       |
 | `java_version`                | The Java JDK version to run build commands with.                                                                                 | false    | `25`                       |
 | `java_distribution`           | The Java JDK distribution.                                                                                                       | false    | `temurin`                  |
 | `build_command`               | The Gradle build command to run.                                                                                                 | false    | `build`                    |
@@ -195,7 +246,45 @@ jobs:
 
 | Output                       | Description                                                        |
 |------------------------------|--------------------------------------------------------------------|
-| `published_artifact_version` | The published version (release or snapshot), or empty if skipped.  |
+| `published_artifact_version` | Resolved version for downstream use (tag/snapshot/override/file).  |
+
+This output is not a publish-success flag. It can be populated on build-only paths (for example
+`release_type: 'none'`, or empty `release_type` on non-main) so downstream jobs can still reuse a
+consistent version string.
+
+### Compute snapshot version
+
+Workflow: [`compute-snapshot-version.yml`](.github/workflows/compute-snapshot-version.yml)
+
+Computes a snapshot version in `{major}.{minor}.{patch}-{short-sha}-SNAPSHOT` format by:
+- checking out full git history and tags
+- running the reusable `compute-version` action
+- applying snapshot arithmetic (if no bump is detected, patch is incremented)
+
+This workflow takes no required inputs and is intended for caller-managed snapshot pipelines.
+
+#### Example usage
+
+```yaml
+jobs:
+  compute-snapshot-version:
+    uses: ministryofjustice/laa-ccms-common-workflows/.github/workflows/compute-snapshot-version.yml@main
+    permissions:
+      contents: read
+
+  publish-image:
+    needs: compute-snapshot-version
+    uses: ministryofjustice/laa-ccms-common-workflows/.github/workflows/ecr-publish-image.yml@main
+    with:
+      image_version: ${{ needs.compute-snapshot-version.outputs.snapshot_version }}
+    secrets: inherit
+```
+
+#### Outputs
+
+| Output             | Description                                                            |
+|--------------------|------------------------------------------------------------------------|
+| `snapshot_version` | Snapshot version in `{major}.{minor}.{patch}-{short-sha}-SNAPSHOT`.   |
 
 ### Publish image to ECR
 
@@ -780,4 +869,3 @@ jobs:
 | `pact_broker_url`      | The Pact Broker URL you want to test against or publish to.                                   | true     |            |
 | `pact_broker_username` | The Pact Broker username.                                                                     | true     |            |
 | `pact_broker_password` | The Pact Broker password.                                                                     | true     |            |
-
