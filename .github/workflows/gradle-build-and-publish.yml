@@ -363,7 +363,18 @@ jobs:
         if: ${{ steps.create-tag.outputs.gtag != '' }}
         env:
           VERSION: ${{ steps.create-tag.outputs.gtag }}
-        run: ./gradlew publish -Pversion="${VERSION#v}"
+        run: |
+          if [[ -n "$SONATYPE_USERNAME" &&
+                -n "$SONATYPE_PASSWORD" &&
+                -n "$GPG_SIGNING_KEY" &&
+                -n "$GPG_PASSPHRASE" ]]; then
+            ./gradlew \
+              publishToSonatype \
+              closeAndReleaseSonatypeStagingRepository \
+              -Pversion="${VERSION#v}"
+          else
+            ./gradlew publish -Pversion="${VERSION#v}"
+          fi
 
       # ── New release_type: create GitHub Release ────────────────────────────────────
       - name: Create GitHub Release

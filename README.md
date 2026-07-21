@@ -61,8 +61,10 @@ The `release_type` input is the single control point for the release pipeline:
 | `''` (empty) on `main`      | Auto-detects Bump Type from Conventional Commits; defaults to `patch`             |
 | `''` (empty) elsewhere      | Build and test only                                                               |
 
-Snapshot publications use Sonatype when all four Sonatype and signing secrets are supplied.
-If any are omitted, the workflow retains the existing GitHub Packages publication path.
+Release and snapshot publications use Sonatype when all four Sonatype and signing secrets are
+supplied. Releases are closed and released from the Sonatype staging repository; snapshots are
+published directly to the Sonatype snapshot repository. If any secret is omitted, the workflow
+retains the existing GitHub Packages publication path.
 
 #### Conventional Commits and versioning
 
@@ -121,6 +123,10 @@ jobs:
       github_app_id: ${{ vars.YOUR_APP_ID }}
       github_app_private_key: ${{ secrets.YOUR_APP_KEY }}
       github_app_organisation: ministryofjustice
+      sonatype_username: ${{ secrets.SONATYPE_USERNAME }}
+      sonatype_password: ${{ secrets.SONATYPE_PASSWORD }}
+      gpg_signing_key: ${{ secrets.GPG_SIGNING_KEY }}
+      gpg_passphrase: ${{ secrets.GPG_PASSPHRASE }}
 ```
 
 To chain Docker image publishing after a release, use `published_artifact_version` output:
@@ -787,4 +793,3 @@ jobs:
 | `pact_broker_url`      | The Pact Broker URL you want to test against or publish to.                                   | true     |            |
 | `pact_broker_username` | The Pact Broker username.                                                                     | true     |            |
 | `pact_broker_password` | The Pact Broker password.                                                                     | true     |            |
-
