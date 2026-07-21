@@ -61,6 +61,9 @@ The `release_type` input is the single control point for the release pipeline:
 | `''` (empty) on `main`      | Auto-detects Bump Type from Conventional Commits; defaults to `patch`             |
 | `''` (empty) elsewhere      | Build and test only                                                               |
 
+Snapshot publications use Sonatype when all four Sonatype and signing secrets are supplied.
+If any are omitted, the workflow retains the existing GitHub Packages publication path.
+
 #### Conventional Commits and versioning
 
 When `release_type` is empty on `main`, the pipeline scans commit messages since the last Release Tag
@@ -190,6 +193,10 @@ jobs:
 | `github_app_id`           | The ID of the GitHub App used for tag creation. Required for release paths.                            | false    |
 | `github_app_private_key`  | The private key of the GitHub App used for tag creation. Required for release paths.                   | false    |
 | `github_app_organisation` | The organisation in which the GitHub App is installed.                                                 | false    |
+| `sonatype_username`       | The Sonatype username.                                                                                 | false    |
+| `sonatype_password`       | The Sonatype password.                                                                                 | false    |
+| `gpg_signing_key`         | The GPG private key used to sign Maven Central publications.                                           | false    |
+| `gpg_passphrase`          | The passphrase for the GPG signing key.                                                                | false    |
 
 #### Outputs
 

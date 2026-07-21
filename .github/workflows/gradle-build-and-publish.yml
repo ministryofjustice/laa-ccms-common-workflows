@@ -115,6 +115,14 @@ on:
         required: false
       github_app_organisation:
         required: false
+      sonatype_username:
+        required: false
+      sonatype_password:
+        required: false
+      gpg_signing_key:
+        required: false
+      gpg_passphrase:
+        required: false
     outputs:
       published_artifact_version:
         description: "The version of the published artifact."
@@ -156,6 +164,10 @@ jobs:
       AWS_REGION: ${{ secrets.aws_region }}
       GITHUB_APP_ID: ${{ secrets.github_app_id }}
       GITHUB_APP_PRIVATE_KEY: ${{ secrets.github_app_private_key }}
+      SONATYPE_USERNAME: ${{ secrets.sonatype_username }}
+      SONATYPE_PASSWORD: ${{ secrets.sonatype_password }}
+      GPG_SIGNING_KEY: ${{ secrets.gpg_signing_key }}
+      GPG_PASSPHRASE: ${{ secrets.gpg_passphrase }}
 
     outputs:
       published_artifact_version: ${{ steps.capture_published_version.outputs.published_artifact_version }}
@@ -298,7 +310,15 @@ jobs:
         if: ${{ inputs.create_tag != 'true' && inputs.release_type == 'snapshot' && steps.snapshot.outputs.snapshot_version != '' }}
         env:
           VERSION: ${{ steps.snapshot.outputs.snapshot_version }}
-        run: ./gradlew publish -Pversion="${VERSION}"
+        run: |
+          if [[ -n "$SONATYPE_USERNAME" &&
+                -n "$SONATYPE_PASSWORD" &&
+                -n "$GPG_SIGNING_KEY" &&
+                -n "$GPG_PASSPHRASE" ]]; then
+            ./gradlew publishToSonatype -Pversion="${VERSION}"
+          else
+            ./gradlew publish -Pversion="${VERSION}"
+          fi
 
       # ── New release_type: create tag ───────────────────────────────────────────────
       # Runs for explicit release_type=patch/minor/major or auto-detected release on main.
