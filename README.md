@@ -33,9 +33,10 @@ Workflow: [`gradle-build-and-publish.yml`](.github/workflows/gradle-build-and-pu
 Runs a Gradle build (or chosen build task), optional integration tests, and handles versioning,
 tagging, artifact publishing, and GitHub Release creation — all driven by a single `release_type` input.
 
-Version computation is handled internally via the [`compute-version`](.github/actions/compute-version)
-composite action: it resolves the previous Release Tag, detects the Bump Type from
-[Conventional Commits](https://www.conventionalcommits.org/), and applies semver arithmetic.
+Version computation delegates to the SHA-pinned
+[`compute-version`](https://github.com/ministryofjustice/laa-reusable-github-actions/tree/main/.github/actions/compute-version)
+action in `laa-reusable-github-actions`: it resolves the previous Release Tag, detects the Bump
+Type from [Conventional Commits](https://www.conventionalcommits.org/), and applies semver arithmetic.
 
 It is assumed that `build` includes unit tests.
 
@@ -571,8 +572,9 @@ Individual reusable actions for common tasks.
 Action: [`compute-version/action.yml`](.github/actions/compute-version/action.yml)
 
 Resolves the previous Release Tag, detects the Bump Type from Conventional Commits, and computes
-the next semver version. Used internally by `gradle-build-and-publish.yml` and available for use
-in custom pipelines.
+the next semver version. This local compatibility action remains available for custom pipelines;
+`gradle-build-and-publish.yml` delegates to the SHA-pinned `compute-version` action in
+`laa-reusable-github-actions`.
 
 Tag resolution prefers `v{semver}` tags; falls back to `{repo-name}-{semver}` tags (old Gradle
 Release Plugin format) during migration.

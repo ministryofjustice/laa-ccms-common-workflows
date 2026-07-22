@@ -3,81 +3,35 @@ name: Publish image to ECR
 on:
   workflow_call:
     inputs:
-      java_version:
-        required: false
-        type: string
-        default: '25'
-      java_distribution:
-        required: false
-        type: string
-        default: 'temurin'
-      image_version:
-        required: true
-        type: string
-      dockerfile_path:
-        required: false
-        type: string
-      docker_build_args:
-        required: false
-        type: string
-      jar_subproject:
-        required: false
-        type: string
-      image_scan:
-        required: false
-        type: string
-        default: 'true'
-      image_scan_severity:
-        required: false
-        type: string
-        default: 'medium'
-      image_scan_fail_on:
-        required: false
-        type: string
-        default: 'upgradable'
-      image_scan_policy_path:
-        required: false
-        type: string
-        default: '.snyk'
-      image_scan_upload_sarif:
-        required: false
-        type: string
-        default: 'true'
-      publish:
-        required: false
-        type: string
-        default: 'true'
-      tag_with_latest:
-        required: false
-        type: boolean
-        default: false
+      java_version: { required: false, type: string, default: '25' }
+      java_distribution: { required: false, type: string, default: temurin }
+      image_version: { required: true, type: string }
+      dockerfile_path: { required: false, type: string }
+      docker_build_args: { required: false, type: string }
+      jar_subproject: { required: false, type: string }
+      image_scan: { required: false, type: string, default: 'true' }
+      image_scan_severity: { required: false, type: string, default: medium }
+      image_scan_fail_on: { required: false, type: string, default: upgradable }
+      image_scan_policy_path: { required: false, type: string, default: .snyk }
+      image_scan_upload_sarif: { required: false, type: string, default: 'true' }
+      publish: { required: false, type: string, default: 'true' }
+      tag_with_latest: { required: false, type: boolean, default: false }
     secrets:
-      gh_token:
-        required: true
-      ecr_region:
-        required: true
-      ecr_repository:
-        required: true
-      ecr_role_to_assume:
-        required: true
-      ecr_registry:
-        required: false
-      snyk_token:
-        required: false
-      snyk_client_id:
-        required: false
-      snyk_client_secret:
-        required: false
-      root_certificate:
-        required: false
-      binding_directory:
-        required: false
-      tls_keystore_password:
-        required: false
+      gh_token: { required: true }
+      ecr_region: { required: true }
+      ecr_repository: { required: true }
+      ecr_role_to_assume: { required: true }
+      ecr_registry: { required: false }
+      snyk_token: { required: false }
+      snyk_client_id: { required: false }
+      snyk_client_secret: { required: false }
+      root_certificate: { required: false }
+      binding_directory: { required: false }
+      tls_keystore_password: { required: false }
     outputs:
       published_image_version:
-        description: "The version of the published image."
-        value: ${{ jobs.ecr-publish-image.outputs.published_image_version }}
+        description: The version of the published image
+        value: ${{ jobs.publish-image.outputs.published_image_version }}
 
 permissions:
   contents: read
@@ -85,221 +39,40 @@ permissions:
   security-events: write
 
 jobs:
-  ecr-publish-image:
+  deprecation-notice:
     runs-on: ubuntu-latest
-
-    name: ${{ inputs.publish == 'true' && 'Publish image' || (inputs.image_scan == 'true' && 'Scan image') || 'Image pipeline' }}
-
-    env:
-      GITHUB_TOKEN: ${{ secrets.gh_token }}
-      ECR_REGISTRY: ${{ secrets.ecr_registry }}
-      ROOT_CERTIFICATE: ${{ secrets.root_certificate }}
-      # SNYK_TOKEN will be set below if available, otherwise set by auth step
-      SNYK_TOKEN: ${{ secrets.snyk_token }}
-      TLS_KEYSTORE_PASSWORD: ${{ secrets.TLS_KEYSTORE_PASSWORD }}
-
-    outputs:
-      published_image_version: ${{ steps.publish-image.outputs.published_image_version }}
-
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - name: Set up JDK ${{ inputs.java_version }}
-        uses: actions/setup-java@1bcf9fb12cf4aa7d266a90ae39939e61372fe520 # v5.4.0
-        with:
-          java-version: ${{ inputs.java_version }}
-          distribution: ${{ inputs.java_distribution }}
-
-      # Validate secrets and set flag if Snyk Oauth token is required
-      - name: Validate Snyk secrets and set flag
-        if: ${{ inputs.image_scan == 'true' }}
-        id: validate-and-set-snyk-oauth-token-required
+      - name: Transitional workflow notice
         run: |
-          if [ -z "${{ secrets.snyk_token }}" ] && { [ -z "${{ secrets.snyk_client_id }}" ] || [ -z "${{ secrets.snyk_client_secret }}" ]; }; then
-            echo "Error: You must provide either SNYK_TOKEN or both SNYK_CLIENT_ID and SNYK_CLIENT_SECRET as secrets."
-            echo "required=false" >> $GITHUB_OUTPUT
-            exit 1
-          fi
-          if [ -z "${{ secrets.snyk_token }}" ] && [ -n "${{ secrets.snyk_client_id }}" ] && [ -n "${{ secrets.snyk_client_secret }}" ]; then
-            echo "required=true" >> $GITHUB_OUTPUT
-          else
-            echo "required=false" >> $GITHUB_OUTPUT
-          fi
+          echo "::warning title=Transitional workflow::laa-ccms-common-workflows is a compatibility shim. Migrate to laa-reusable-github-actions/.github/workflows/java-ecr-publish-image.yml; no fixed sunset date has been set."
+          echo "## ⚠️ Transitional workflow" >> "$GITHUB_STEP_SUMMARY"
+          echo "Migrate to the central \`java-ecr-publish-image.yml\` workflow. No fixed sunset date has been set." >> "$GITHUB_STEP_SUMMARY"
 
-      # Obtain short-lived Snyk token if required
-      - name: Obtain Short-lived Snyk token
-        id: auth
-        if: ${{ inputs.image_scan == 'true' && steps.validate-and-set-snyk-oauth-token-required.outputs.required == 'true' }}
-        uses: ministryofjustice/laa-reusable-github-actions/.github/actions/snyk-auth@6db001458db30ae747d9eb8eb25707ce52b359bc # v??? no versioning on the action currently
-        with:
-          client_id: ${{ secrets.snyk_client_id }}
-          client_secret: ${{ secrets.snyk_client_secret }}
-
-      - name: Configure aws credentials
-        if: ${{ inputs.publish == 'true' }}
-        uses: aws-actions/configure-aws-credentials@254c19bd240aabef8777f48595e9d2d7b972184b # v6.2.1
-        with:
-          role-to-assume: ${{ secrets.ecr_role_to_assume }}
-          aws-region: ${{ secrets.ecr_region }}
-
-      - name: Login ecr
-        if: ${{ inputs.publish == 'true' && env.ECR_REGISTRY == '' }}
-        uses: aws-actions/amazon-ecr-login@d539f0932e70871a027e9d5a9d8fc38589180a64 # v2.1.6
-        id: login-ecr
-
-      - name: Login ecr in different registry
-        if: ${{ inputs.publish == 'true' && env.ECR_REGISTRY != '' }}
-        uses: aws-actions/amazon-ecr-login@d539f0932e70871a027e9d5a9d8fc38589180a64 # v2.1.6
-        with:
-          registries: ${{ secrets.ecr_registry }}
-        id: login-another-ecr
-
-      - name: Configure certificate binding
-        if: ${{ env.ROOT_CERTIFICATE != '' }}
-        run: |
-          if [ -z "${{ secrets.binding_directory }}" ]; then
-            echo "A binding directory is required."
-            exit 1
-          fi
-          mkdir -p ${{ secrets.binding_directory }}
-          echo "${{ secrets.root_certificate }}" > ${{ secrets.binding_directory }}/root_cert.pem
-          echo "ca-certificates" > ${{ secrets.binding_directory }}/type
-          echo "created certificate binding"
-          tree ${{ secrets.binding_directory }}
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
-
-      - name: Build image
-        id: build-image
-        env:
-          REGISTRY: ${{ steps.login-ecr.outputs.registry || steps.login-another-ecr.outputs.registry }}
-          REPOSITORY: ${{ secrets.ecr_repository }}
-        run: |
-          if [ "${{ inputs.publish }}" != "true" ]; then
-            # Set placeholder values when not publishing
-            REGISTRY=registry
-            REPOSITORY=repository
-          fi
-          image_name=${REGISTRY}/${REPOSITORY}:${{ inputs.image_version }}
-          if [ -n "${{ inputs.dockerfile_path }}" ]; then
-            echo "Dockerfile provided, building via docker build"
-            ./gradlew assemble
-            docker buildx build ${{ inputs.docker_build_args }} \
-              -f "${{ inputs.dockerfile_path }}" \
-              -t "$image_name" .
-          else
-            echo "Dockerfile not provided, building via SpringBoot bootBuildImage (buildpacks)"
-            gradle_subproject=''
-            if [[ -n "${{ inputs.jar_subproject }}" ]]; then
-              gradle_subproject=":${{ inputs.jar_subproject }}:"
-            fi
-            ./gradlew "${gradle_subproject}bootBuildImage" \
-              --imageName "$image_name"
-          fi
-          if [[ "${{ inputs.tag_with_latest }}" == "true" ]]; then
-            echo "Tagging image as latest"
-            latest_image_name="${REGISTRY}/${REPOSITORY}:latest"
-            docker tag "$image_name" "$latest_image_name"
-            echo "latest_image_name=$latest_image_name" >> $GITHUB_OUTPUT
-          fi
-          echo "image_name=$image_name" >> $GITHUB_OUTPUT
-          echo "Image built with version: $image_name"
-
-      - name: Install Snyk CLI
-        if: ${{ inputs.image_scan == 'true' }}
-        uses: snyk/actions/setup@9adf32b1121593767fc3c057af55b55db032dc04 # v1.0.0
-
-      - name: Scan image
-        if: ${{ inputs.image_scan == 'true' }}
-        id: snyk
-        continue-on-error: true
-        env:
-          SNYK_OAUTH_TOKEN: ${{ steps.auth.outputs.token  }}
-          SNYK_TOKEN: ${{ env.SNYK_TOKEN }}
-        run: |
-          snyk container test ${{ steps.build-image.outputs.image_name }} \
-            --org=legal-aid-agency \
-            --severity-threshold=${{ inputs.image_scan_severity }} \
-            --fail-on=${{ inputs.image_scan_fail_on }} \
-            --sarif-file-output=snyk-report.sarif \
-            --policy-path=${{ inputs.image_scan_policy_path }}
-
-      - name: Fix undefined values in sarif report
-        if: ${{ inputs.image_scan == 'true' && inputs.image_scan_upload_sarif == 'true'}}
-        run: |
-          echo "Input sarif: "
-          cat snyk-report.sarif
-          cat snyk-report.sarif | jq '
-              .runs[].tool[].rules[]
-              |= (
-                  if (
-                    .properties["security-severity"] == null or
-                    .properties["security-severity"] == "null" or
-                    .properties["security-severity"] == "undefined" or
-                    .properties["security-severity"] == ""
-                  )
-                  then .properties["security-severity"] =
-                   (  if .shortDescription.text | test("(?i)critical") then "9.0"
-                      elif .shortDescription.text | test("(?i)high") then "7.0"
-                      elif .shortDescription.text | test("(?i)medium") then "4.0"
-                      elif .shortDescription.text | test("(?i)low") then "0.1"
-                      else ""
-                      end
-                   )
-                   else .
-                   end
-               )
-          ' > snyk-report-cleansed.sarif
-          echo "Output sarif: "
-          cat snyk-report-cleansed.sarif
-
-      - name: Upload image scan result to GitHub Code Scanning
-        if: ${{ inputs.image_scan == 'true' && inputs.image_scan_upload_sarif == 'true'}}
-        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
-        with:
-          sarif_file: snyk-report-cleansed.sarif
-
-      - name: Fail job if Snyk found vulnerabilities
-        if: ${{ inputs.image_scan == 'true' && steps.snyk.outcome == 'failure' }}
-        run: |
-          echo "Snyk found vulnerabilities, see code scanning outputs."
-          exit 1
-
-      - name: Publish image
-        if: ${{ inputs.publish == 'true' }}
-        id: publish-image
-        run: |
-          if [[ "${{ inputs.tag_with_latest }}" == "true" ]]; then
-            docker push ${{ steps.build-image.outputs.image_name }}
-            docker push ${{ steps.build-image.outputs.latest_image_name }}
-            echo "published_image_version=${{ inputs.image_version }}" >> $GITHUB_OUTPUT
-            echo "Image published to ECR with version: \`${{ inputs.image_version }}\` and tagged as \`latest\`" >> $GITHUB_STEP_SUMMARY
-            echo "Published image version: ${{ inputs.image_version }} (also tagged as latest)"
-          else
-            docker push ${{ steps.build-image.outputs.image_name }}
-            echo "published_image_version=${{ inputs.image_version }}" >> $GITHUB_OUTPUT
-            echo "Image published to ECR with version: \`${{ inputs.image_version }}\`" >> $GITHUB_STEP_SUMMARY
-            echo "Published image version: ${{ inputs.image_version }}"
-          fi
-
-      - name: Warn about deprecated SNYK_TOKEN usage
-        if: ${{ inputs.image_scan == 'true' && env.SNYK_TOKEN != '' }}
-        run: |
-          echo "::warning title=Deprecated SNYK_TOKEN::A SNYK_TOKEN was used to authenticate with Snyk. Snyk recommends OAuth 2.0 service accounts (SNYK_CLIENT_ID + SNYK_CLIENT_SECRET). SNYK_TOKEN support will be removed in a future release."
-
-      - name: Add migration guidance to job summary
-        if: ${{ inputs.image_scan == 'true' && env.SNYK_TOKEN != '' }}
-        run: |
-          {
-            echo "## ⚠️ Deprecated: SNYK_TOKEN"
-            echo ""
-            echo "Your workflow is using \`SNYK_TOKEN\` to authenticate with Snyk."
-            echo ""
-            echo "### Why migrate?"
-            echo "Snyk recommends OAuth 2.0 service accounts for CI/CD pipelines."
-            echo ""
-            echo "### How to migrate"
-            echo "Replace \`SNYK_TOKEN\` with \`SNYK_CLIENT_ID\` and \`SNYK_CLIENT_SECRET\`"
-            echo ""
-            echo "> 🚨 **\`SNYK_TOKEN\` support will be removed in a future release.**"
-          } >> $GITHUB_STEP_SUMMARY
+  publish-image:
+    needs: deprecation-notice
+    uses: ministryofjustice/laa-reusable-github-actions/.github/workflows/java-ecr-publish-image.yml@262cfada3caf0af6c7b86805f5d47c683d0e45da # feat/java-pipeline-refactor 2026-07-23
+    with:
+      java_version: ${{ inputs.java_version }}
+      java_distribution: ${{ inputs.java_distribution }}
+      image_version: ${{ inputs.image_version }}
+      dockerfile_path: ${{ inputs.dockerfile_path }}
+      docker_build_args: ${{ inputs.docker_build_args }}
+      jar_subproject: ${{ inputs.jar_subproject }}
+      image_scan: ${{ inputs.image_scan == 'true' }}
+      image_scan_severity: ${{ inputs.image_scan_severity }}
+      image_scan_fail_on: ${{ inputs.image_scan_fail_on }}
+      image_scan_policy_path: ${{ inputs.image_scan_policy_path }}
+      image_scan_upload_sarif: ${{ inputs.image_scan_upload_sarif == 'true' }}
+      publish: ${{ inputs.publish == 'true' }}
+      tag_with_latest: ${{ inputs.tag_with_latest }}
+    secrets:
+      ecr_region: ${{ secrets.ecr_region }}
+      ecr_repository: ${{ secrets.ecr_repository }}
+      ecr_role_to_assume: ${{ secrets.ecr_role_to_assume }}
+      ecr_registry: ${{ secrets.ecr_registry }}
+      snyk_token: ${{ secrets.snyk_token }}
+      snyk_client_id: ${{ secrets.snyk_client_id }}
+      snyk_client_secret: ${{ secrets.snyk_client_secret }}
+      root_certificate: ${{ secrets.root_certificate }}
+      binding_directory: ${{ secrets.binding_directory }}
+      tls_keystore_password: ${{ secrets.tls_keystore_password }}
