@@ -3,162 +3,100 @@ name: Gradle build and publish
 on:
   workflow_call:
     inputs:
-      # ── New input ──────────────────────────────────────────────────────────
-      release_type:
-        description: >
-          Release type: major | minor | patch | snapshot | none.
-          Leave empty to auto-detect from Conventional Commits on push to main,
-          or for build-only on all other triggers.
-
-          Auto-detect rules (Conventional Commits):
-            feat!: / fix!: / BREAKING CHANGE  →  major (x.0.0)
-            feat:                              →  minor (0.x.0)
-            fix: / chore: / refactor:          →  patch (0.0.x)
-            anything else                      →  patch (default)
-
-          Use 'snapshot' on PR/feature branches for a pre-release build.
-          Use 'none' to run tests only with no tag or publish step.
-        required: false
-        type: string
-        default: ''
-      # ── Existing inputs (unchanged) ────────────────────────────────────────
-      java_version:
-        required: false
-        type: string
-        default: 25
-      java_distribution:
-        required: false
-        type: string
-        default: temurin
-      build_command:
-        required: false
-        type: string
-        default: build
-      build_args:
-        required: false
-        type: string
-      integration_test_task:
-        required: false
-        type: string
-      publish_package:
-        required: false
-        type: string
-        default: false
-      override_version:
-        required: false
-        type: string
-      override_tagged_branch:
-        required: false
-        type: string
-        default: main
-      junit_results:
-        required: false
-        type: string
-        default: true
-      junit_results_path:
-        required: false
-        type: string
-        default: build/test-results
-      junit_report:
-        required: false
-        type: string
-        default: true
-      junit_report_path:
-        required: false
-        type: string
-        default: build/reports/tests
-      checkstyle_report:
-        required: false
-        type: string
-        default: true
-      checkstyle_report_path:
-        required: false
-        type: string
-        default: build/reports/checkstyle
-      jacoco_coverage_report:
-        required: false
-        type: string
-        default: true
-      jacoco_coverage_report_path:
-        required: false
-        type: string
-        default: build/reports/jacoco
-      github_bot_username:
-        required: false
-        type: string
-        default: github-actions-bot
-      semgrep_check:
-        required: false
-        type: string
-        default: false
-      # ── Deprecated inputs ──────────────────────────────────────────────────
-      # create_tag: superseded by release_type=patch/minor/major
+      release_type: { required: false, type: string, default: '' }
+      java_version: { required: false, type: string, default: '25' }
+      java_distribution: { required: false, type: string, default: temurin }
+      build_command: { required: false, type: string, default: build }
+      build_args: { required: false, type: string }
+      integration_test_task: { required: false, type: string }
+      publish_package: { required: false, type: string, default: 'false' }
+      override_version: { required: false, type: string }
+      override_tagged_branch: { required: false, type: string, default: main }
+      junit_results: { required: false, type: string, default: 'true' }
+      junit_results_path: { required: false, type: string, default: build/test-results }
+      junit_report: { required: false, type: string, default: 'true' }
+      junit_report_path: { required: false, type: string, default: build/reports/tests }
+      checkstyle_report: { required: false, type: string, default: 'true' }
+      checkstyle_report_path: { required: false, type: string, default: build/reports/checkstyle }
+      jacoco_coverage_report: { required: false, type: string, default: 'true' }
+      jacoco_coverage_report_path: { required: false, type: string, default: build/reports/jacoco }
+      github_bot_username: { required: false, type: string, default: github-actions-bot }
+      semgrep_check: { required: false, type: string, default: 'false' }
       create_tag:
-        description: "DEPRECATED: use release_type=patch/minor/major instead."
+        description: 'DEPRECATED: use release_type=patch/minor/major instead.'
         required: false
         type: string
-        default: false
-      # is_snapshot: superseded by release_type=snapshot
+        default: 'false'
       is_snapshot:
-        description: "DEPRECATED: use release_type=snapshot instead."
+        description: 'DEPRECATED: use release_type=snapshot instead.'
         required: false
         type: string
-        default: false
+        default: 'false'
     secrets:
-      gh_token:
-        required: true
-      aws_region:
-        required: false
-      github_app_id:
-        required: false
-      github_app_private_key:
-        required: false
-      github_app_organisation:
-        required: false
-      sonatype_username:
-        required: false
-      sonatype_password:
-        required: false
-      gpg_signing_key:
-        required: false
-      gpg_passphrase:
-        required: false
+      gh_token: { required: true }
+      aws_region: { required: false }
+      github_app_id: { required: false }
+      github_app_private_key: { required: false }
+      github_app_organisation: { required: false }
+      sonatype_username: { required: false }
+      sonatype_password: { required: false }
+      gpg_signing_key: { required: false }
+      gpg_passphrase: { required: false }
     outputs:
       published_artifact_version:
-        description: "The version of the published artifact."
-        value: ${{ jobs.build-and-publish.outputs.published_artifact_version }}
+        description: The version of the published artifact
+        value: ${{ jobs.modern.outputs.published_artifact_version || jobs.legacy.outputs.published_artifact_version }}
 
 permissions:
   contents: write
   packages: write
 
 jobs:
-  semgrep-scan:
-    if: ${{ inputs.semgrep_check == 'true' }}
-    name: semgrep-security-scan
+  deprecation-notice:
     runs-on: ubuntu-latest
-    container:
-      image: returntocorp/semgrep
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - name: Run Semgrep scan
-        run: semgrep scan --exclude-rule python.django.security.django-no-csrf-token.django-no-csrf-token --error --config auto
+      - name: Transitional workflow notice
+        run: |
+          echo "::warning title=Transitional workflow::laa-ccms-common-workflows is a compatibility shim. Migrate to laa-reusable-github-actions/.github/workflows/java-gradle-build-and-publish.yml; no fixed sunset date has been set."
+          echo "## ⚠️ Transitional workflow" >> "$GITHUB_STEP_SUMMARY"
+          echo "Migrate to the central \`java-gradle-build-and-publish.yml\` workflow. No fixed sunset date has been set." >> "$GITHUB_STEP_SUMMARY"
 
-  build-and-publish:
-    needs: semgrep-scan
-    if: ${{ always() && (inputs.semgrep_check != 'true' || (needs.semgrep-scan.result != 'failure' && needs.semgrep-scan.result != 'cancelled')) }}
+  modern:
+    needs: deprecation-notice
+    if: ${{ inputs.create_tag != 'true' && inputs.is_snapshot != 'true' && inputs.publish_package != 'true' }}
+    uses: ministryofjustice/laa-reusable-github-actions/.github/workflows/java-gradle-build-and-publish.yml@262cfada3caf0af6c7b86805f5d47c683d0e45da # feat/java-pipeline-refactor 2026-07-23
+    with:
+      release_type: ${{ inputs.release_type }}
+      java_version: ${{ inputs.java_version }}
+      java_distribution: ${{ inputs.java_distribution }}
+      build_command: ${{ inputs.build_command }}
+      build_args: ${{ inputs.build_args }}
+      integration_test_task: ${{ inputs.integration_test_task }}
+      override_version: ${{ inputs.override_version }}
+      junit_results: ${{ inputs.junit_results == 'true' }}
+      junit_results_path: ${{ inputs.junit_results_path }}
+      junit_report: ${{ inputs.junit_report == 'true' }}
+      junit_report_path: ${{ inputs.junit_report_path }}
+      checkstyle_report: ${{ inputs.checkstyle_report == 'true' }}
+      checkstyle_report_path: ${{ inputs.checkstyle_report_path }}
+      jacoco_coverage_report: ${{ inputs.jacoco_coverage_report == 'true' }}
+      jacoco_coverage_report_path: ${{ inputs.jacoco_coverage_report_path }}
+      github_bot_username: ${{ inputs.github_bot_username }}
+      semgrep_check: ${{ inputs.semgrep_check == 'true' }}
+    secrets:
+      gh_token: ${{ secrets.gh_token }}
+      aws_region: ${{ secrets.aws_region }}
+      sonatype_username: ${{ secrets.sonatype_username }}
+      sonatype_password: ${{ secrets.sonatype_password }}
+      gpg_signing_key: ${{ secrets.gpg_signing_key }}
+      gpg_passphrase: ${{ secrets.gpg_passphrase }}
+
+  legacy:
+    needs: deprecation-notice
+    if: ${{ inputs.create_tag == 'true' || inputs.is_snapshot == 'true' || inputs.publish_package == 'true' }}
     runs-on: ubuntu-latest
-
-    name: >-
-      ${{
-        inputs.release_type == 'snapshot' && 'Build and publish snapshot' ||
-        (inputs.release_type == 'patch' || inputs.release_type == 'minor' || inputs.release_type == 'major') && format('Release ({0})', inputs.release_type) ||
-        inputs.release_type == '' && github.ref == 'refs/heads/main' && 'Release (auto-detect)' ||
-        inputs.create_tag == 'true' && 'Create tag (deprecated)' ||
-        inputs.publish_package == 'true' && 'Build and publish package' ||
-        'Build pipeline'
-      }}
-
+    outputs:
+      published_artifact_version: ${{ steps.capture.outputs.published_artifact_version }}
     env:
       GITHUB_TOKEN: ${{ secrets.gh_token }}
       AWS_REGION: ${{ secrets.aws_region }}
@@ -168,87 +106,31 @@ jobs:
       SONATYPE_PASSWORD: ${{ secrets.sonatype_password }}
       GPG_SIGNING_KEY: ${{ secrets.gpg_signing_key }}
       GPG_PASSPHRASE: ${{ secrets.gpg_passphrase }}
-
-    outputs:
-      published_artifact_version: ${{ steps.capture_published_version.outputs.published_artifact_version }}
-
     steps:
-      # ── Deprecation warnings ────────────────────────────────────────────────
-      - name: Warn deprecated inputs
-        if: ${{ inputs.create_tag == 'true' || inputs.is_snapshot == 'true' }}
-        shell: bash
+      - name: Warn about deprecated inputs
         run: |
-          if [ "${{ inputs.create_tag }}" = "true" ]; then
-            echo "::warning::The create_tag input is deprecated and will be removed in a future version. Use release_type=patch/minor/major instead. See https://github.com/ministryofjustice/laa-ccms-common-workflows/blob/main/docs/adrs/0002-git-tag-based-release-pipeline.md"
-          fi
-          if [ "${{ inputs.is_snapshot }}" = "true" ]; then
-            echo "::warning::The is_snapshot input is deprecated and will be removed in a future version. Use release_type=snapshot instead. See https://github.com/ministryofjustice/laa-ccms-common-workflows/blob/main/docs/adrs/0002-git-tag-based-release-pipeline.md"
-          fi
+          echo "::warning::This run uses deprecated CCMS publishing inputs. Migrate to release_type before adopting the central Java workflow."
 
-      # ── App token (used for tag push and release creation) ─────────────────
-      - name: Get app token
+      - name: Get GitHub App token
         if: ${{ env.GITHUB_APP_ID != '' && env.GITHUB_APP_PRIVATE_KEY != '' }}
-        id: get_workflow_token
+        id: app-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           app-id: ${{ secrets.github_app_id }}
           private-key: ${{ secrets.github_app_private_key }}
           owner: ${{ secrets.github_app_organisation }}
 
-      # ── Checkout ────────────────────────────────────────────────────────────
-      # Old deprecated create_tag path: shallow checkout of the target branch.
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        if: ${{ inputs.create_tag == 'true' }}
         with:
-          ref: ${{ inputs.override_tagged_branch }}
-          token: ${{ steps.get_workflow_token.outputs.token || env.GITHUB_TOKEN }}
-
-      # New release_type path and all other cases: full history for version computation.
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        if: ${{ inputs.create_tag != 'true' }}
-        with:
+          ref: ${{ inputs.create_tag == 'true' && inputs.override_tagged_branch || github.ref }}
           fetch-depth: 0
           fetch-tags: true
-          token: ${{ steps.get_workflow_token.outputs.token || env.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token || secrets.gh_token }}
 
-      # ── Compute version (new release_type path) ──────────────────────────────────
-      # Runs when release_type is explicit (patch/minor/major/snapshot) or when
-      # release_type is empty and we are on main (auto-detect).
-      # bump input overrides commit-based detection for explicit release types.
-      - name: Compute version
-        id: compute
-        if: >-
-          ${{
-            inputs.create_tag != 'true' &&
-            inputs.release_type != 'none' &&
-            (inputs.release_type != '' || github.ref == 'refs/heads/main')
-          }}
-        uses: ministryofjustice/laa-ccms-common-workflows/.github/actions/compute-version@main
-        with:
-          bump: ${{ inputs.release_type != 'snapshot' && inputs.release_type || '' }}
+      - name: Run Semgrep scan
+        if: ${{ inputs.semgrep_check == 'true' }}
+        uses: ministryofjustice/laa-reusable-github-actions/.github/actions/semgrep-scan@262cfada3caf0af6c7b86805f5d47c683d0e45da # feat/java-pipeline-refactor 2026-07-23
 
-      # Compute SNAPSHOT version for release_type=snapshot.
-      - name: Compute snapshot version
-        id: snapshot
-        if: ${{ inputs.create_tag != 'true' && inputs.release_type == 'snapshot' }}
-        shell: bash
-        env:
-          BUMP_TYPE:  ${{ steps.compute.outputs.bump_type }}
-          MAJOR:      ${{ steps.compute.outputs.major }}
-          MINOR:      ${{ steps.compute.outputs.minor }}
-          PATCH:      ${{ steps.compute.outputs.patch }}
-        run: |
-          set -eu
-          BUMP="${BUMP_TYPE:-none}"
-          M="${MAJOR:-0}"; N="${MINOR:-0}"; P="${PATCH:-0}"
-          # For snapshots, always bump at least patch when no conventional commit found.
-          if [[ "$BUMP" == "none" ]]; then P=$((P+1)); fi
-          HASH=$(git rev-parse --short HEAD)
-          VERSION="${M}.${N}.${P}-${HASH}-SNAPSHOT"
-          echo "snapshot_version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Computed snapshot version: ${VERSION}"
-
-      # ── JDK / Gradle setup ──────────────────────────────────────────────────
       - name: Set up JDK ${{ inputs.java_version }}
         uses: actions/setup-java@1bcf9fb12cf4aa7d266a90ae39939e61372fe520 # v5.4.0
         with:
@@ -258,161 +140,57 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
 
-      # ── Build and test ───────────────────────────────────────────────────────
-      - name: Gradle ${{ inputs.build_command }}
-        run: ./gradlew ${{ inputs.build_command }} ${{ inputs.build_args }}
+      - name: Build and test
+        env:
+          BUILD_ARGS: ${{ inputs.build_args }}
+          BUILD_COMMAND: ${{ inputs.build_command }}
+        run: |
+          args=()
+          if [[ -n "$BUILD_ARGS" ]]; then read -r -a args <<< "$BUILD_ARGS"; fi
+          ./gradlew "$BUILD_COMMAND" "${args[@]}"
 
       - name: Test coverage verification
         if: ${{ inputs.jacoco_coverage_report == 'true' }}
         run: ./gradlew jacocoTestCoverageVerification
 
-      - name: Force docker-java API version (temporary workaround for testcontainers)
-        run: |
-          echo "This is a temporary workaround for https://github.com/testcontainers/testcontainers-java/issues/11212"
-          echo "api.version=1.44" > ~/.docker-java.properties
+      - name: Configure Testcontainers Docker API compatibility
+        run: echo "api.version=1.44" > ~/.docker-java.properties
 
       - name: Integration test
         if: ${{ inputs.integration_test_task != '' }}
-        run: ./gradlew ${{ inputs.integration_test_task }}
+        run: ./gradlew "${{ inputs.integration_test_task }}"
 
-      # ── Deprecated publish paths ─────────────────────────────────────────────
-      - name: Publish snapshot package (deprecated)
-        if: ${{ inputs.publish_package == 'true' && inputs.create_tag == 'false' && inputs.is_snapshot == 'true' }}
+      - name: Publish snapshot package
+        if: ${{ inputs.publish_package == 'true' && inputs.create_tag != 'true' && inputs.is_snapshot == 'true' }}
         run: ./gradlew updateSnapshotVersion && ./gradlew publish
 
-      - name: Publish package (deprecated)
-        if: ${{ inputs.publish_package == 'true' && inputs.create_tag == 'false' && inputs.is_snapshot != 'true' && inputs.release_type == '' }}
+      - name: Publish package
+        if: ${{ inputs.publish_package == 'true' && inputs.create_tag != 'true' && inputs.is_snapshot != 'true' }}
         env:
           OVERRIDE_VERSION: ${{ inputs.override_version }}
         run: |
-          PUBLISH_ARGS=()
-          if [[ -n "$OVERRIDE_VERSION" ]]; then
-            PUBLISH_ARGS+=(-Pversion=$OVERRIDE_VERSION)
-          fi
-          ./gradlew publish ${PUBLISH_ARGS[@]}
+          args=()
+          if [[ -n "$OVERRIDE_VERSION" ]]; then args+=(-Pversion="$OVERRIDE_VERSION"); fi
+          ./gradlew publish "${args[@]}"
 
-      - name: Create tag (deprecated)
+      - name: Create tag with legacy Gradle release plugin
         if: ${{ inputs.create_tag == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token || secrets.gh_token }}
         run: |
-          if [ -z "${{ steps.get_workflow_token.outputs.token }}" ]; then
-            echo "GitHub App token will not be used for this run."
-          else
-            echo "GitHub App token will be used for this run."
-          fi
           git config --global user.email "${{ inputs.github_bot_username }}[bot]@users.noreply.github.com"
           git config --global user.name "${{ inputs.github_bot_username }}[bot]"
           ./gradlew release -Prelease.useAutomaticVersion=true
-        env:
-          GITHUB_TOKEN: ${{ steps.get_workflow_token.outputs.token || env.GITHUB_TOKEN }}
 
-      # ── New release_type: publish snapshot ─────────────────────────────────────────
-      - name: Publish snapshot
-        if: ${{ inputs.create_tag != 'true' && inputs.release_type == 'snapshot' && steps.snapshot.outputs.snapshot_version != '' }}
-        env:
-          VERSION: ${{ steps.snapshot.outputs.snapshot_version }}
-        run: |
-          if [[ -n "$SONATYPE_USERNAME" &&
-                -n "$SONATYPE_PASSWORD" &&
-                -n "$GPG_SIGNING_KEY" &&
-                -n "$GPG_PASSPHRASE" ]]; then
-            ./gradlew publishToSonatype -Pversion="${VERSION}"
-          else
-            ./gradlew publish -Pversion="${VERSION}"
-          fi
-
-      # ── New release_type: create tag ───────────────────────────────────────────────
-      # Runs for explicit release_type=patch/minor/major or auto-detected release on main.
-      - name: Create Git tag
-        id: create-tag
-        if: >-
-          ${{
-            inputs.create_tag != 'true' &&
-            inputs.release_type != 'snapshot' &&
-            steps.compute.outputs.next_version != ''
-          }}
-        shell: bash
-        env:
-          GTAG:         ${{ steps.compute.outputs.next_version }}
-          BOT_USERNAME: ${{ inputs.github_bot_username }}
-          GIT_TOKEN:    ${{ steps.get_workflow_token.outputs.token || env.GITHUB_TOKEN }}
-        run: |
-          set -eu
-          test -n "$GTAG"
-          git config user.name  "${BOT_USERNAME}[bot]"
-          git config user.email "${BOT_USERNAME}[bot]@users.noreply.github.com"
-          if git ls-remote --tags origin | grep -q "refs/tags/${GTAG}$"; then
-            echo "Tag ${GTAG} already exists on remote. Skipping."
-            echo "gtag=${GTAG}" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          echo "Creating Git tag [${GTAG}]"
-          git tag -a "$GTAG" -m "Release ${GTAG}"
-          git push origin "$GTAG" || {
-            EXIT=$?
-            if git ls-remote --tags origin | grep -q "refs/tags/${GTAG}$"; then
-              echo "Tag ${GTAG} was already pushed (race condition). Skipping."
-            else
-              echo "::error::Failed to push tag ${GTAG} (exit ${EXIT})"
-              exit $EXIT
-            fi
-          }
-          echo "gtag=${GTAG}" >> "$GITHUB_OUTPUT"
-
-      # ── New release_type: publish release artifact ─────────────────────────────────
-      - name: Publish release artifact
-        if: ${{ steps.create-tag.outputs.gtag != '' }}
-        env:
-          VERSION: ${{ steps.create-tag.outputs.gtag }}
-        run: |
-          if [[ -n "$SONATYPE_USERNAME" &&
-                -n "$SONATYPE_PASSWORD" &&
-                -n "$GPG_SIGNING_KEY" &&
-                -n "$GPG_PASSPHRASE" ]]; then
-            ./gradlew \
-              publishToSonatype \
-              closeAndReleaseSonatypeStagingRepository \
-              -Pversion="${VERSION#v}"
-          else
-            ./gradlew publish -Pversion="${VERSION#v}"
-          fi
-
-      # ── New release_type: create GitHub Release ────────────────────────────────────
-      - name: Create GitHub Release
-        if: ${{ steps.create-tag.outputs.gtag != '' }}
-        env:
-          GH_TOKEN: ${{ steps.get_workflow_token.outputs.token || github.token }}
-          GTAG:     ${{ steps.create-tag.outputs.gtag }}
-        run: |
-          test -n "$GTAG"
-          if gh release view "$GTAG" >/dev/null 2>&1; then
-            echo "Release ${GTAG} already exists. Skipping."
-            exit 0
-          fi
-          echo "Creating GitHub Release [${GTAG}]"
-          gh release create "$GTAG" --verify-tag --title "$GTAG" --generate-notes
-
-      # ── Capture published version ─────────────────────────────────────────────
       - name: Capture published version
-        id: capture_published_version
-        shell: bash
+        id: capture
+        env:
+          OVERRIDE_VERSION: ${{ inputs.override_version }}
         run: |
-          set -eu
-          # Priority: release tag > snapshot > override_version > gradle.properties
-          if [[ -n "${{ steps.create-tag.outputs.gtag }}" ]]; then
-            VERSION="${{ steps.create-tag.outputs.gtag }}"
-            VERSION="${VERSION#v}"
-          elif [[ -n "${{ steps.snapshot.outputs.snapshot_version }}" ]]; then
-            VERSION="${{ steps.snapshot.outputs.snapshot_version }}"
-          elif [[ -n "${{ inputs.override_version }}" ]]; then
-            VERSION="${{ inputs.override_version }}"
-          else
-            VERSION=$(grep "^version=" gradle.properties | cut -d'=' -f2)
-          fi
-          echo "published_artifact_version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Artifact version: \`${VERSION}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "Artifact version: ${VERSION}"
+          version="$OVERRIDE_VERSION"
+          if [[ -z "$version" ]]; then version=$(grep '^version=' gradle.properties | cut -d= -f2); fi
+          echo "published_artifact_version=${version}" >> "$GITHUB_OUTPUT"
 
-      # ── Upload reports ────────────────────────────────────────────────────────
       - name: Upload test results
         if: ${{ inputs.junit_results == 'true' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -429,7 +207,7 @@ jobs:
           path: ${{ inputs.junit_report_path }}
           retention-days: 14
 
-      - name: Upload checkstyle report
+      - name: Upload Checkstyle report
         if: ${{ inputs.checkstyle_report == 'true' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -437,7 +215,7 @@ jobs:
           path: ${{ inputs.checkstyle_report_path }}
           retention-days: 14
 
-      - name: Upload jacoco coverage report
+      - name: Upload JaCoCo coverage report
         if: ${{ inputs.jacoco_coverage_report == 'true' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
