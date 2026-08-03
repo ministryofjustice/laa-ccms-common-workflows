@@ -10,18 +10,26 @@ REPO_NAME="$(basename "$(git rev-parse --show-toplevel)")"
 # or bare semver tags (old Gradle Release Plugin schemes). Fallbacks can be removed once
 # all repositories have at least one v-prefix Release Tag.
 PREV_TAG="$(git describe --tags --abbrev=0 --match "v[0-9]*" 2>/dev/null || true)"
+ORIGINAL_PREV_TAG="${PREV_TAG}"
 if [ -z "$PREV_TAG" ]; then
   OLD_TAG="$(git describe --tags --abbrev=0 --match "${REPO_NAME}-[0-9]*" 2>/dev/null || true)"
-  if [ -n "$OLD_TAG" ]; then PREV_TAG="v${OLD_TAG#${REPO_NAME}-}"; fi
+  if [ -n "$OLD_TAG" ]; then
+    ORIGINAL_PREV_TAG="${OLD_TAG}"
+    PREV_TAG="v${OLD_TAG#${REPO_NAME}-}";
+  fi
 fi
 if [ -z "$PREV_TAG" ]; then
   BARE_TAG="$(git describe --tags --abbrev=0 --match "[0-9]*" 2>/dev/null || true)"
-  if [ -n "$BARE_TAG" ]; then PREV_TAG="v${BARE_TAG}"; fi
+  if [ -n "$BARE_TAG" ]; then
+    ORIGINAL_PREV_TAG="${BARE_TAG}"
+    PREV_TAG="v${BARE_TAG}";
+  fi
 fi
 PREV_TAG="${PREV_TAG:-v0.0.0}"
+ORIGINAL_PREV_TAG="${ORIGINAL_PREV_TAG:-v0.0.0}"
 
-if git rev-parse -q --verify "$PREV_TAG" >/dev/null 2>&1 && git merge-base --is-ancestor "$PREV_TAG" HEAD 2>/dev/null; then
-  COMMITS="${PREV_TAG}..HEAD"
+if git rev-parse -q --verify "$ORIGINAL_PREV_TAG" >/dev/null 2>&1 && git merge-base --is-ancestor "$ORIGINAL_PREV_TAG" HEAD 2>/dev/null; then
+  COMMITS="${ORIGINAL_PREV_TAG}..HEAD"
 else
   COMMITS="HEAD"
 fi
