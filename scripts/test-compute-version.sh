@@ -4,7 +4,8 @@
 # Run: bash scripts/test-compute-version.sh
 set -euo pipefail
 
-SCRIPT="$(dirname "$0")/../.github/actions/compute-version/compute-version.sh"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT="${SCRIPT_DIR}/../.github/actions/compute-version/compute-version.sh"
 PASS=0; FAIL=0
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -172,6 +173,36 @@ OUT=$(run_script "$D")
 assert_eq "prev_tag=v0.0.0"     "v0.0.0"  "$(parse_output "$OUT" prev_tag)"
 assert_eq "bump_type=patch"      "patch"    "$(parse_output "$OUT" bump_type)"
 assert_eq "next_version=v0.0.1"  "v0.0.1"  "$(parse_output "$OUT" next_version)"
+
+# ── TEST 12: app-name tag uses original tag for commit range ─────────────────
+echo "TEST 12: app-name tag only scans commits after the tag"
+D=$(make_repo)
+REPO="$(basename "$D")"
+
+commit "$D" "feat!: historical breaking change"
+git -C "$D" tag -a "${REPO}-1.2.3" -m "release"
+commit "$D" "fix: patch after release"
+
+OUT=$(run_script "$D")
+
+assert_eq "prev_tag resolved"    "v1.2.3" "$(parse_output "$OUT" prev_tag)"
+assert_eq "bump_type=patch"      "patch"  "$(parse_output "$OUT" bump_type)"
+assert_eq "next_version=v1.2.4"  "v1.2.4" "$(parse_output "$OUT" next_version)"
+
+
+# ── TEST 13: bare tag uses original tag for commit range ─────────────────────
+echo "TEST 13: bare semver tag only scans commits after the tag"
+D=$(make_repo)
+
+commit "$D" "feat!: historical breaking change"
+git -C "$D" tag -a "1.2.3" -m "release"
+commit "$D" "fix: patch after release"
+
+OUT=$(run_script "$D")
+
+assert_eq "prev_tag resolved"    "v1.2.3" "$(parse_output "$OUT" prev_tag)"
+assert_eq "bump_type=patch"      "patch"  "$(parse_output "$OUT" bump_type)"
+assert_eq "next_version=v1.2.4"  "v1.2.4" "$(parse_output "$OUT" next_version)"
 
 echo ""
 echo "Results: ${PASS} passed, ${FAIL} failed"
