@@ -1,0 +1,46 @@
+name: Compute snapshot version
+
+on:
+  workflow_call:
+    outputs:
+      snapshot_version:
+        description: "Snapshot version in {major}.{minor}.{patch}-{short-sha}-SNAPSHOT format."
+        value: ${{ jobs.compute-snapshot-version.outputs.snapshot_version }}
+
+permissions:
+  contents: read
+
+jobs:
+  compute-snapshot-version:
+    runs-on: ubuntu-latest
+    outputs:
+      snapshot_version: ${{ steps.version.outputs.snapshot_version }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Compute version
+        id: compute
+        uses: ministryofjustice/laa-ccms-common-workflows/.github/actions/compute-version@main
+
+      - name: Compute snapshot version
+        id: version
+        shell: bash
+        env:
+          BUMP_TYPE: ${{ steps.compute.outputs.bump_type }}
+          MAJOR:     ${{ steps.compute.outputs.major }}
+          MINOR:     ${{ steps.compute.outputs.minor }}
+          PATCH:     ${{ steps.compute.outputs.patch }}
+        run: |
+          set -eu
+          BUMP="${BUMP_TYPE:-none}"
+          M="${MAJOR:-0}"; N="${MINOR:-0}"; P="${PATCH:-0}"
+          if [[ "$BUMP" == "none" ]]; then
+            P=$((P+1))
+          fi
+          HASH=$(git rev-parse --short HEAD)
+          VERSION="${M}.${N}.${P}-${HASH}-SNAPSHOT"
+          echo "snapshot_version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Computed snapshot version: ${VERSION}"
