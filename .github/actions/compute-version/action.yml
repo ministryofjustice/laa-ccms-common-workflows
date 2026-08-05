@@ -13,6 +13,8 @@ inputs:
     description: >
       Override the detected bump type. One of: major | minor | patch | none.
       When empty (default), bump type is auto-detected from Conventional Commits.
+      'auto-release-only' is also accepted and treated the same as empty
+      (auto-detect).
     required: false
     default: ''
 
@@ -43,5 +45,5 @@ runs:
       id: compute
       shell: bash
       env:
-        BUMP_OVERRIDE: ${{ inputs.bump }}
+        BUMP_OVERRIDE: ${{ inputs.bump != 'auto-release-only' && inputs.bump || '' }}
       run: bash "${{ github.action_path }}/compute-version.sh"

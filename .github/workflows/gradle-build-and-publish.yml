@@ -17,7 +17,8 @@ on:
             anything else                      →  patch (default)
 
           Use 'snapshot' on PR/feature branches for a pre-release build.
-          Use 'auto-release-only' on main branches for a release only without publishing a package.
+          Use 'auto-release-only' on main branches to auto-detect and release exactly like
+          leaving this empty, but without publishing an artifact.
           Use 'none' to run tests only with no tag or publish step.
         required: false
         type: string
@@ -154,6 +155,7 @@ jobs:
       ${{
         inputs.release_type == 'snapshot' && 'Build and publish snapshot' ||
         (inputs.release_type == 'patch' || inputs.release_type == 'minor' || inputs.release_type == 'major') && format('Release ({0})', inputs.release_type) ||
+        inputs.release_type == 'auto-release-only' && github.ref == 'refs/heads/main' && 'Release (auto-detect, no publish)' ||
         inputs.release_type == '' && github.ref == 'refs/heads/main' && 'Release (auto-detect)' ||
         inputs.create_tag == 'true' && 'Create tag (deprecated)' ||
         inputs.publish_package == 'true' && 'Build and publish package' ||
@@ -214,15 +216,17 @@ jobs:
 
       # ── Compute version (new release_type path) ──────────────────────────────────
       # Runs when release_type is explicit (patch/minor/major/snapshot) or when
-      # release_type is empty and we are on main (auto-detect).
-      # bump input overrides commit-based detection for explicit release types.
+      # release_type is empty/'auto-release-only' and we are on main (auto-detect).
+      # bump input overrides commit-based detection for explicit release types; the
+      # compute-version action itself normalizes 'auto'/'auto-release-only' to empty
+      # (auto-detect), so they can be passed straight through here.
       - name: Compute version
         id: compute
         if: >-
           ${{
             inputs.create_tag != 'true' &&
             inputs.release_type != 'none' &&
-            (inputs.release_type != '' || github.ref == 'refs/heads/main')
+            ((inputs.release_type != '' && inputs.release_type != 'auto-release-only') || github.ref == 'refs/heads/main')
           }}
         uses: ministryofjustice/laa-ccms-common-workflows/.github/actions/compute-version@main
         with:

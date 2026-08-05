@@ -53,13 +53,19 @@ It is assumed that `build` includes unit tests.
 
 The `release_type` input is the single control point for the release pipeline:
 
-| `release_type`              | Behaviour                                                                         |
-|-----------------------------|-----------------------------------------------------------------------------------|
-| `patch` / `minor` / `major` | Creates Release Tag, publishes Maven artifact, creates GitHub Release             |
-| `snapshot`                  | Computes `{next}-{hash}-SNAPSHOT` version and publishes artifact                  |
-| `none`                      | Build and test only — no publish, no tag                                          |
-| `''` (empty) on `main`      | Auto-detects Bump Type from Conventional Commits; defaults to `patch`             |
-| `''` (empty) elsewhere      | Build and test only                                                               |
+| `release_type`                 | Behaviour                                                                                                  |
+|--------------------------------|------------------------------------------------------------------------------------------------------------|
+| `patch` / `minor` / `major`    | Creates Release Tag, publishes Maven artifact, creates GitHub Release                                      |
+| `snapshot`                     | Computes `{next}-{hash}-SNAPSHOT` version and publishes artifact                                           |
+| `auto-release-only`, on `main` | Same as `''` (empty) on `main`, but does **not** publish an artifact — Release Tag and GitHub Release only |
+| `auto-release-only`, elsewhere | Build and test only                                                                                        |
+| `none`                         | Build and test only — no publish, no tag                                                                   |
+| `''` (empty) on `main`         | Auto-detects Bump Type from Conventional Commits; defaults to `patch`                                      |
+| `''` (empty) elsewhere         | Build and test only                                                                                        |
+
+> **Note:** `auto` is not a value the pipeline itself understands — it's a convenience
+> `workflow_dispatch` choice (see example below) that callers translate to `''` before
+> invoking this workflow, since `workflow_dispatch` `choice` inputs can't default to empty.
 
 Release and snapshot publications use Sonatype when all four Sonatype and signing secrets are
 supplied. Releases are closed and released from the Sonatype staging repository; snapshots are
@@ -68,12 +74,12 @@ retains the existing GitHub Packages publication path.
 
 #### Conventional Commits and versioning
 
-When `release_type` is empty on `main`, the pipeline scans commit messages since the last Release Tag
-and determines the bump type automatically:
+When `release_type` is empty (or `auto-release-only`) on `main`, the pipeline scans commit messages
+since the last Release Tag and determines the bump type automatically:
 
 | Commit prefix                              | Bump type | Example version  |
 |--------------------------------------------|-----------|------------------|
-| `feat!:` / `fix!:` / `BREAKING CHANGE:`   | `major`   | `1.0.0 → 2.0.0`  |
+| `feat!:` / `fix!:` / `BREAKING CHANGE:`    | `major`   | `1.0.0 → 2.0.0`  |
 | `feat:`                                    | `minor`   | `1.0.0 → 1.1.0`  |
 | `fix:` / `chore:` / `refactor:`            | `patch`   | `1.0.0 → 1.0.1`  |
 | anything else (or no commits matched)      | `patch`   | `1.0.0 → 1.0.1`  |
@@ -579,20 +585,20 @@ Release Plugin format) during migration.
 
 #### Inputs
 
-| Input  | Description                                                                                          | Required | Default |
-|--------|------------------------------------------------------------------------------------------------------|----------|---------|
-| `bump` | Override the detected bump type: `major` \| `minor` \| `patch` \| `none`. Empty = auto-detect.      | false    | `''`    |
+| Input  | Description                                                                                    | Required | Default |
+|--------|------------------------------------------------------------------------------------------------|----------|---------|
+| `bump` | Override the detected bump type: `major` \| `minor` \| `patch` \| `none`. Empty = auto-detect. | false    | `''`    |
 
 #### Outputs
 
-| Output         | Description                                                                  |
-|----------------|------------------------------------------------------------------------------|
-| `prev_tag`     | Last Release Tag found (e.g. `v1.2.3`), or `v0.0.0` if none.               |
-| `bump_type`    | Detected bump type: `major` \| `minor` \| `patch` \| `none`.                |
-| `major`        | Major component of the next version.                                         |
-| `minor`        | Minor component of the next version.                                         |
-| `patch`        | Patch component of the next version.                                         |
-| `next_version` | Next Release Tag (e.g. `v1.3.0`), or empty string when `bump_type=none`.    |
+| Output         | Description                                                              |
+|----------------|--------------------------------------------------------------------------|
+| `prev_tag`     | Last Release Tag found (e.g. `v1.2.3`), or `v0.0.0` if none.             |
+| `bump_type`    | Detected bump type: `major` \| `minor` \| `patch` \| `none`.             |
+| `major`        | Major component of the next version.                                     |
+| `minor`        | Minor component of the next version.                                     |
+| `patch`        | Patch component of the next version.                                     |
+| `next_version` | Next Release Tag (e.g. `v1.3.0`), or empty string when `bump_type=none`. |
 
 ### Define Snyk arguments
 
