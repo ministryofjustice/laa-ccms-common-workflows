@@ -6,7 +6,7 @@ on:
       # ── New input ──────────────────────────────────────────────────────────
       release_type:
         description: >
-          Release type: major | minor | patch | snapshot | none.
+          Release type: major | minor | patch | snapshot | auto-release-only | none.
           Leave empty to auto-detect from Conventional Commits on push to main,
           or for build-only on all other triggers.
 
@@ -17,6 +17,7 @@ on:
             anything else                      →  patch (default)
 
           Use 'snapshot' on PR/feature branches for a pre-release build.
+          Use 'auto-release-only' on main branches for a release only without publishing a package.
           Use 'none' to run tests only with no tag or publish step.
         required: false
         type: string
@@ -360,7 +361,7 @@ jobs:
 
       # ── New release_type: publish release artifact ─────────────────────────────────
       - name: Publish release artifact
-        if: ${{ steps.create-tag.outputs.gtag != '' }}
+        if: ${{ inputs.release_type != 'auto-release-only' && steps.create-tag.outputs.gtag != '' }}
         env:
           VERSION: ${{ steps.create-tag.outputs.gtag }}
         run: |
