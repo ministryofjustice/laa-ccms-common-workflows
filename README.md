@@ -53,13 +53,19 @@ It is assumed that `build` includes unit tests.
 
 The `release_type` input is the single control point for the release pipeline:
 
-| `release_type`              | Behaviour                                                                         |
-|-----------------------------|-----------------------------------------------------------------------------------|
-| `patch` / `minor` / `major` | Creates Release Tag, publishes Maven artifact, creates GitHub Release             |
-| `snapshot`                  | Computes `{next}-{hash}-SNAPSHOT` version and publishes artifact                  |
-| `none`                      | Build and test only — no publish, no tag                                          |
-| `''` (empty) on `main`      | Auto-detects Bump Type from Conventional Commits; defaults to `patch`             |
-| `''` (empty) elsewhere      | Build and test only                                                               |
+| `release_type`                 | Behaviour                                                                                                  |
+|--------------------------------|------------------------------------------------------------------------------------------------------------|
+| `patch` / `minor` / `major`    | Creates Release Tag, publishes Maven artifact, creates GitHub Release                                      |
+| `snapshot`                     | Computes `{next}-{hash}-SNAPSHOT` version and publishes artifact                                           |
+| `auto-release-only`, on `main` | Same as `''` (empty) on `main`, but does **not** publish an artifact — Release Tag and GitHub Release only |
+| `auto-release-only`, elsewhere | Build and test only                                                                                        |
+| `none`                         | Build and test only — no publish, no tag                                                                   |
+| `''` (empty) on `main`         | Auto-detects Bump Type from Conventional Commits; defaults to `patch`                                      |
+| `''` (empty) elsewhere         | Build and test only                                                                                        |
+
+> **Note:** `auto` is not a value the pipeline itself understands — it's a convenience
+> `workflow_dispatch` choice (see example below) that callers translate to `''` before
+> invoking this workflow, since `workflow_dispatch` `choice` inputs can't default to empty.
 
 Release and snapshot publications use Sonatype when all four Sonatype and signing secrets are
 supplied. Releases are closed and released from the Sonatype staging repository; snapshots are
@@ -68,12 +74,12 @@ retains the existing GitHub Packages publication path.
 
 #### Conventional Commits and versioning
 
-When `release_type` is empty on `main`, the pipeline scans commit messages since the last Release Tag
-and determines the bump type automatically:
+When `release_type` is empty (or `auto-release-only`) on `main`, the pipeline scans commit messages
+since the last Release Tag and determines the bump type automatically:
 
 | Commit prefix                              | Bump type | Example version  |
 |--------------------------------------------|-----------|------------------|
-| `feat!:` / `fix!:` / `BREAKING CHANGE:`   | `major`   | `1.0.0 → 2.0.0`  |
+| `feat!:` / `fix!:` / `BREAKING CHANGE:`    | `major`   | `1.0.0 → 2.0.0`  |
 | `feat:`                                    | `minor`   | `1.0.0 → 1.1.0`  |
 | `fix:` / `chore:` / `refactor:`            | `patch`   | `1.0.0 → 1.0.1`  |
 | anything else (or no commits matched)      | `patch`   | `1.0.0 → 1.0.1`  |
@@ -106,7 +112,7 @@ on:
       release_type:
         type: choice
         default: "auto"
-        options: [ "auto", "none", "patch", "minor", "major" ]
+        options: [ "auto", "auto-release-only", "none", "patch", "minor", "major" ]
 
 jobs:
   release:
@@ -166,29 +172,29 @@ jobs:
 
 #### Inputs
 
-| Input                         | Description                                                                                                                      | Required | Default                    |
-|-------------------------------|----------------------------------------------------------------------------------------------------------------------------------|----------|----------------------------|
-| `release_type`                     | Release type: `major` \| `minor` \| `patch` \| `snapshot` \| `none` \| `''` (auto-detect on main). See table above.             | false    | `''`                       |
-| `java_version`                | The Java JDK version to run build commands with.                                                                                 | false    | `25`                       |
-| `java_distribution`           | The Java JDK distribution.                                                                                                       | false    | `temurin`                  |
-| `build_command`               | The Gradle build command to run.                                                                                                 | false    | `build`                    |
-| `build_args`                  | Additional build arguments to pass to the Gradle `build` task.                                                                   | false    |                            |
-| `integration_test_task`       | The name of the Gradle task to run integration tests (if separate from unit tests).                                              | false    |                            |
-| `override_version`            | Specify an explicit version to publish artifacts with. Takes precedence over computed version.                                    | false    |                            |
-| `junit_results`               | Whether a junit results artifact should be produced.                                                                             | false    | `true`                     |
-| `junit_results_path`          | The path of the junit test results to upload.                                                                                    | false    | `build/test-results`       |
-| `junit_report`                | Whether a junit report artifact should be produced.                                                                              | false    | `true`                     |
-| `junit_report_path`           | The path of the junit report to upload.                                                                                          | false    | `build/reports/tests`      |
-| `checkstyle_report`           | Whether a checkstyle report artifact should be produced.                                                                         | false    | `true`                     |
-| `checkstyle_report_path`      | The path of the checkstyle report to upload.                                                                                     | false    | `build/reports/checkstyle` |
-| `jacoco_coverage_report`      | Whether a jacoco coverage report artifact should be produced.                                                                    | false    | `true`                     |
-| `jacoco_coverage_report_path` | The path of the jacoco report to upload.                                                                                         | false    | `build/reports/jacoco`     |
-| `github_bot_username`         | The bot username for git commits made by this workflow.                                                                          | false    | `github-actions-bot`       |
-| `semgrep_check`               | Whether to run a Semgrep security scan before the main build.                                                                    | false    | `false`                    |
-| `publish_package` ⚠️          | **Deprecated.** Use `release_type` instead.                                                                                           | false    | `false`                    |
-| `create_tag` ⚠️               | **Deprecated.** Use `release_type=patch/minor/major` instead.                                                                         | false    | `false`                    |
-| `is_snapshot` ⚠️              | **Deprecated.** Use `release_type=snapshot` instead.                                                                                  | false    | `false`                    |
-| `override_tagged_branch` ⚠️   | **Deprecated.** Used only by the legacy `create_tag` path.                                                                      | false    | `main`                     |
+| Input                         | Description                                                                                                                                | Required | Default                    |
+|-------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|----------|----------------------------|
+| `release_type`                | Release type: `major` \| `minor` \| `patch` \| `snapshot` \| `auto-release-only` \| `none` \| `''` (auto-detect on main). See table above. | false    | `''`                       |
+| `java_version`                | The Java JDK version to run build commands with.                                                                                           | false    | `25`                       |
+| `java_distribution`           | The Java JDK distribution.                                                                                                                 | false    | `temurin`                  |
+| `build_command`               | The Gradle build command to run.                                                                                                           | false    | `build`                    |
+| `build_args`                  | Additional build arguments to pass to the Gradle `build` task.                                                                             | false    |                            |
+| `integration_test_task`       | The name of the Gradle task to run integration tests (if separate from unit tests).                                                        | false    |                            |
+| `override_version`            | Specify an explicit version to publish artifacts with. Takes precedence over computed version.                                             | false    |                            |
+| `junit_results`               | Whether a junit results artifact should be produced.                                                                                       | false    | `true`                     |
+| `junit_results_path`          | The path of the junit test results to upload.                                                                                              | false    | `build/test-results`       |
+| `junit_report`                | Whether a junit report artifact should be produced.                                                                                        | false    | `true`                     |
+| `junit_report_path`           | The path of the junit report to upload.                                                                                                    | false    | `build/reports/tests`      |
+| `checkstyle_report`           | Whether a checkstyle report artifact should be produced.                                                                                   | false    | `true`                     |
+| `checkstyle_report_path`      | The path of the checkstyle report to upload.                                                                                               | false    | `build/reports/checkstyle` |
+| `jacoco_coverage_report`      | Whether a jacoco coverage report artifact should be produced.                                                                              | false    | `true`                     |
+| `jacoco_coverage_report_path` | The path of the jacoco report to upload.                                                                                                   | false    | `build/reports/jacoco`     |
+| `github_bot_username`         | The bot username for git commits made by this workflow.                                                                                    | false    | `github-actions-bot`       |
+| `semgrep_check`               | Whether to run a Semgrep security scan before the main build.                                                                              | false    | `false`                    |
+| `publish_package` ⚠️          | **Deprecated.** Use `release_type` instead.                                                                                                | false    | `false`                    |
+| `create_tag` ⚠️               | **Deprecated.** Use `release_type=patch/minor/major` instead.                                                                              | false    | `false`                    |
+| `is_snapshot` ⚠️              | **Deprecated.** Use `release_type=snapshot` instead.                                                                                       | false    | `false`                    |
+| `override_tagged_branch` ⚠️   | **Deprecated.** Used only by the legacy `create_tag` path.                                                                                 | false    | `main`                     |
 
 #### Secrets
 
@@ -579,20 +585,20 @@ Release Plugin format) during migration.
 
 #### Inputs
 
-| Input  | Description                                                                                          | Required | Default |
-|--------|------------------------------------------------------------------------------------------------------|----------|---------|
-| `bump` | Override the detected bump type: `major` \| `minor` \| `patch` \| `none`. Empty = auto-detect.      | false    | `''`    |
+| Input  | Description                                                                                    | Required | Default |
+|--------|------------------------------------------------------------------------------------------------|----------|---------|
+| `bump` | Override the detected bump type: `major` \| `minor` \| `patch` \| `none`. Empty = auto-detect. | false    | `''`    |
 
 #### Outputs
 
-| Output         | Description                                                                  |
-|----------------|------------------------------------------------------------------------------|
-| `prev_tag`     | Last Release Tag found (e.g. `v1.2.3`), or `v0.0.0` if none.               |
-| `bump_type`    | Detected bump type: `major` \| `minor` \| `patch` \| `none`.                |
-| `major`        | Major component of the next version.                                         |
-| `minor`        | Minor component of the next version.                                         |
-| `patch`        | Patch component of the next version.                                         |
-| `next_version` | Next Release Tag (e.g. `v1.3.0`), or empty string when `bump_type=none`.    |
+| Output         | Description                                                              |
+|----------------|--------------------------------------------------------------------------|
+| `prev_tag`     | Last Release Tag found (e.g. `v1.2.3`), or `v0.0.0` if none.             |
+| `bump_type`    | Detected bump type: `major` \| `minor` \| `patch` \| `none`.             |
+| `major`        | Major component of the next version.                                     |
+| `minor`        | Minor component of the next version.                                     |
+| `patch`        | Patch component of the next version.                                     |
+| `next_version` | Next Release Tag (e.g. `v1.3.0`), or empty string when `bump_type=none`. |
 
 ### Define Snyk arguments
 
