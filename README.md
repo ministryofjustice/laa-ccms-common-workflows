@@ -223,6 +223,10 @@ Worflow: [`ecr-publish-image.yml`](.github/workflows/ecr-publish-image.yml)
 Generates a boot image for a SpringBoot application (via `bootBuildImage`) and pushes the image to
 the given AWS ECR repository.
 
+> [!NOTE]
+> If you require additional trusted certificates to be embedded in your image, please see
+> [Embedding Certificates](./docs/embedding-certificates.md).
+
 #### Pre-requisites
 
 - Java / Gradle project
