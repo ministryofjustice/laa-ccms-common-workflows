@@ -175,11 +175,16 @@ jobs:
         run: |
           set -euo pipefail
 
-          mkdir -p "$BINDING_DIRECTORY"
+          if [ -z "${{ secrets.binding_directory }}" ]; then
+            echo "A binding directory is required."
+            exit 1
+          fi
+
+          mkdir -p ${{ secrets.binding_directory }}
           printf '%s\n' "ca-certificates" > "${{ secrets.binding_directory }}/type"
 
-          printf '%s\n' "$CERTIFICATE_BUNDLE" |
-            awk -v dir="$BINDING_DIRECTORY" '
+          printf '%s\n' "${{ env.CERTIFICATE_BUNDLE }}" |
+            awk -v dir="${{ secrets.binding_directory }}" '
               /-----BEGIN CERTIFICATE-----/ {
                 n++
                 file = sprintf("%s/certificate-%03d.pem", dir, n)
