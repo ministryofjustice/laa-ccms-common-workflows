@@ -70,6 +70,8 @@ on:
         required: false
       root_certificate:
         required: false
+      certificate_bundle:
+        required: false
       binding_directory:
         required: false
       tls_keystore_password:
@@ -94,6 +96,7 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.gh_token }}
       ECR_REGISTRY: ${{ secrets.ecr_registry }}
       ROOT_CERTIFICATE: ${{ secrets.root_certificate }}
+      CERTIFICATE_BUNDLE: ${{ secrets.certificate_bundle }}
       # SNYK_TOKEN will be set below if available, otherwise set by auth step
       SNYK_TOKEN: ${{ secrets.snyk_token }}
       TLS_KEYSTORE_PASSWORD: ${{ secrets.TLS_KEYSTORE_PASSWORD }}
@@ -154,7 +157,7 @@ jobs:
         id: login-another-ecr
 
       - name: Configure certificate binding
-        if: ${{ env.ROOT_CERTIFICATE != '' }}
+        if: ${{ env.ROOT_CERTIFICATE != '' && env.CERTIFICATE_BUNDLE == '' }}
         run: |
           if [ -z "${{ secrets.binding_directory }}" ]; then
             echo "A binding directory is required."
@@ -164,6 +167,43 @@ jobs:
           echo "${{ secrets.root_certificate }}" > ${{ secrets.binding_directory }}/root_cert.pem
           echo "ca-certificates" > ${{ secrets.binding_directory }}/type
           echo "created certificate binding"
+          tree ${{ secrets.binding_directory }}
+
+      - name: Configure certificate bindings
+        if: ${{ env.CERTIFICATE_BUNDLE != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "${{ secrets.binding_directory }}" ]; then
+            echo "A binding directory is required."
+            exit 1
+          fi
+
+          mkdir -p ${{ secrets.binding_directory }}
+          printf '%s\n' "ca-certificates" > "${{ secrets.binding_directory }}/type"
+
+          printf '%s\n' "${{ env.CERTIFICATE_BUNDLE }}" |
+            awk -v dir="${{ secrets.binding_directory }}" '
+              /-----BEGIN CERTIFICATE-----/ {
+                n++
+                file = sprintf("%s/certificate-%03d.pem", dir, n)
+              }
+              file != "" {
+                print > file
+              }
+              /-----END CERTIFICATE-----/ {
+                close(file)
+                file = ""
+              }
+              END {
+                if (n == 0) {
+                  print "No certificates found in bundle" > "/dev/stderr"
+                  exit 1
+                }
+                print "Configured " n " certificate(s)"
+              }
+            '
           tree ${{ secrets.binding_directory }}
 
       - name: Setup Gradle
@@ -281,6 +321,11 @@ jobs:
             echo "Image published to ECR with version: \`${{ inputs.image_version }}\`" >> $GITHUB_STEP_SUMMARY
             echo "Published image version: ${{ inputs.image_version }}"
           fi
+
+      - name: Warn about deprecated ROOT_CERTIFICATE usage
+        if: ${{ env.ROOT_CERTIFICATE != '' }}
+        run: |
+          echo "::warning title=Deprecated ROOT_CERTIFICATE::ROOT_CERTIFICATE support will be removed in a future release. Please use CERTIFICATE_BUNDLE instead."
 
       - name: Warn about deprecated SNYK_TOKEN usage
         if: ${{ inputs.image_scan == 'true' && env.SNYK_TOKEN != '' }}
