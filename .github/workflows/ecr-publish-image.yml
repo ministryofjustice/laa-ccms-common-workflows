@@ -107,7 +107,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up JDK ${{ inputs.java_version }}
-        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
         with:
           java-version: ${{ inputs.java_version }}
           distribution: ${{ inputs.java_distribution }}
@@ -139,7 +139,7 @@ jobs:
 
       - name: Configure aws credentials
         if: ${{ inputs.publish == 'true' }}
-        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        uses: aws-actions/configure-aws-credentials@cbe3b392738ccf3f987d68400dafcf4b0624a56c # v6.2.4
         with:
           role-to-assume: ${{ secrets.ecr_role_to_assume }}
           aws-region: ${{ secrets.ecr_region }}
@@ -295,7 +295,7 @@ jobs:
 
       - name: Upload image scan result to GitHub Code Scanning
         if: ${{ inputs.image_scan == 'true' && inputs.image_scan_upload_sarif == 'true'}}
-        uses: github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4.37.8
+        uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
         with:
           sarif_file: snyk-report-cleansed.sarif
 
