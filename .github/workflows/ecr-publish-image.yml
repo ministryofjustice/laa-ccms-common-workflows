@@ -54,6 +54,9 @@ on:
     secrets:
       gh_token:
         required: true
+      gh_packages_token:
+        description: "Read-only PAT (read:packages) for resolving GitHub Packages hosted in other repositories."
+        required: false
       ecr_region:
         required: true
       ecr_repository:
@@ -94,6 +97,7 @@ jobs:
 
     env:
       GITHUB_TOKEN: ${{ secrets.gh_token }}
+      GITHUB_PACKAGES_TOKEN: ${{ secrets.gh_packages_token }}
       ECR_REGISTRY: ${{ secrets.ecr_registry }}
       ROOT_CERTIFICATE: ${{ secrets.root_certificate }}
       CERTIFICATE_BUNDLE: ${{ secrets.certificate_bundle }}

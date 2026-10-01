@@ -28,6 +28,9 @@ on:
     secrets:
       gh_token:
         required: true
+      gh_packages_token:
+        description: "Read-only PAT (read:packages) for resolving GitHub Packages hosted in other repositories."
+        required: false
       pact_broker_url:
         required: false
       pact_broker_username:
@@ -47,6 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.gh_token }}
+      GITHUB_PACKAGES_TOKEN: ${{ secrets.gh_packages_token }}
       GIT_SHA: ${{ github.sha }}
       GIT_BRANCH: ${{ github.ref_name }}
       PACT_BROKER_URL: ${{ secrets.pact_broker_url }}

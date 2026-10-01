@@ -56,7 +56,8 @@ on:
     secrets:
       gh_token:
         required: true
-      package_token:
+      gh_packages_token:
+        description: "Read-only PAT (read:packages) for resolving GitHub Packages hosted in other repositories."
         required: false
       pact_broker_url:
         required: false
@@ -77,7 +78,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.gh_token }}
-      PACKAGE_TOKEN: ${{ secrets.package_token }}
+      GITHUB_PACKAGES_TOKEN: ${{ secrets.gh_packages_token }}
       GIT_SHA: ${{ github.sha }}
       PACT_BROKER_URL: ${{ secrets.pact_broker_url }}
       PACT_BROKER_USERNAME: ${{ secrets.pact_broker_username }}
@@ -119,11 +120,11 @@ jobs:
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
       - name: Verify controlled-work-validator package access
-        if: ${{ env.PACKAGE_TOKEN != '' }}
+        if: ${{ env.GITHUB_PACKAGES_TOKEN != '' }}
         shell: bash
         env:
           PACKAGE_USERNAME: ${{ github.actor }}
-          PACKAGE_TOKEN: ${{ secrets.package_token }}
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.gh_packages_token }}
         run: |
           set -euo pipefail
 
@@ -134,7 +135,7 @@ jobs:
             --silent \
             --show-error \
             --head \
-            --user "${PACKAGE_USERNAME}:${PACKAGE_TOKEN}" \
+            --user "${PACKAGE_USERNAME}:${GITHUB_PACKAGES_TOKEN}" \
             "$POM_URL" \
             >/dev/null
 
