@@ -119,28 +119,6 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
-      - name: Verify controlled-work-validator package access
-        if: ${{ env.GITHUB_PACKAGES_TOKEN != '' }}
-        shell: bash
-        env:
-          PACKAGE_USERNAME: ${{ github.actor }}
-          GITHUB_PACKAGES_TOKEN: ${{ secrets.gh_packages_token }}
-        run: |
-          set -euo pipefail
-
-          POM_URL="https://maven.pkg.github.com/ministryofjustice/laa-data-controlled-work-validator/uk/gov/justice/laa/dstew/payments/claims/validation/claims-validation-core/1.5.0/claims-validation-core-1.5.0.pom"
-
-          curl \
-            --fail \
-            --silent \
-            --show-error \
-            --head \
-            --user "${PACKAGE_USERNAME}:${GITHUB_PACKAGES_TOKEN}" \
-            "$POM_URL" \
-            >/dev/null
-
-          echo "Controlled-work-validator package access verified."
-
       - name: Run pact test
         id: run_pacts
         env:

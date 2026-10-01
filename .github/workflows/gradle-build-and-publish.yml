@@ -267,6 +267,29 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
+      - name: Verify data-claims-api-models package access
+        if: ${{ env.GITHUB_PACKAGES_TOKEN != '' }}
+        shell: bash
+        env:
+          PACKAGE_USERNAME: ${{ github.actor }}
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.gh_packages_token }}
+        run: |
+          set -euo pipefail
+
+          POM_URL="https://maven.pkg.github.com/ministryofjustice/laa-data-claims-api/uk/gov/justice/laa/datastewardship/payments/data-claims-api-models/1.22.10/data-claims-api-models-1.22.10.pom"
+
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            --head \
+            --user "${PACKAGE_USERNAME}:${GITHUB_PACKAGES_TOKEN}" \
+            "$POM_URL" \
+            >/dev/null
+
+          echo "data-claims-api-models package access verified."
+
+
       # ── Build and test ───────────────────────────────────────────────────────
       - name: Gradle ${{ inputs.build_command }}
         run: ./gradlew ${{ inputs.build_command }} ${{ inputs.build_args }}
