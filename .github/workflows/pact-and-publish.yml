@@ -56,6 +56,9 @@ on:
     secrets:
       gh_token:
         required: true
+      gh_packages_token:
+        description: "Read-only PAT (read:packages) for resolving GitHub Packages hosted in other repositories."
+        required: false
       pact_broker_url:
         required: false
       pact_broker_username:
@@ -121,6 +124,7 @@ jobs:
           PACT_BROKER_USERNAME: ${{ secrets.PACT_BROKER_USERNAME }}
           PACT_BROKER_PASSWORD: ${{ secrets.PACT_BROKER_PASSWORD }}
           PACT_CONSUMER_NAME: ${{ inputs.consumer_name }}
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.gh_packages_token }}
         run: ./gradlew ${{ inputs.pact_test_task }}
 
       - name: Print branch environment name
@@ -128,6 +132,8 @@ jobs:
 
       - name: Publish pact test results
         if: ${{ inputs.publish_pact_results == true }}
+        env:
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.gh_packages_token }}
         run: ./gradlew pactPublish --info
 
       - name: Can I merge?

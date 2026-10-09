@@ -54,6 +54,9 @@ on:
     secrets:
       gh_token:
         required: true
+      gh_packages_token:
+        description: "Read-only PAT (read:packages) for resolving GitHub Packages hosted in other repositories."
+        required: false
       ecr_region:
         required: true
       ecr_repository:
@@ -214,6 +217,7 @@ jobs:
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry || steps.login-another-ecr.outputs.registry }}
           REPOSITORY: ${{ secrets.ecr_repository }}
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.gh_packages_token }}
         run: |
           if [ "${{ inputs.publish }}" != "true" ]; then
             # Set placeholder values when not publishing
