@@ -49,7 +49,7 @@ repositories {
         url = uri('https://maven.pkg.github.com/ministryofjustice/<other-repository>')
         credentials {
             username = System.getenv('GITHUB_ACTOR')
-            password = System.getenv('GITHUB_PACKAGES_TOKEN')
+            password = System.getenv('GITHUB_PACKAGES_TOKEN') ?: System.getenv('GITHUB_TOKEN')
         }
     }
 }
