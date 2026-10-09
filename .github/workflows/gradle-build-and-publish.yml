@@ -274,6 +274,8 @@ jobs:
 
       - name: Test coverage verification
         if: ${{ inputs.jacoco_coverage_report == 'true' }}
+        env:
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.gh_packages_token }}
         run: ./gradlew jacocoTestCoverageVerification
 
       - name: Force docker-java API version (temporary workaround for testcontainers)
@@ -283,17 +285,22 @@ jobs:
 
       - name: Integration test
         if: ${{ inputs.integration_test_task != '' }}
+        env:
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.gh_packages_token }}
         run: ./gradlew ${{ inputs.integration_test_task }}
 
       # ── Deprecated publish paths ─────────────────────────────────────────────
       - name: Publish snapshot package (deprecated)
         if: ${{ inputs.publish_package == 'true' && inputs.create_tag == 'false' && inputs.is_snapshot == 'true' }}
+        env:
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.gh_packages_token }}
         run: ./gradlew updateSnapshotVersion && ./gradlew publish
 
       - name: Publish package (deprecated)
         if: ${{ inputs.publish_package == 'true' && inputs.create_tag == 'false' && inputs.is_snapshot != 'true' && inputs.release_type == '' }}
         env:
           OVERRIDE_VERSION: ${{ inputs.override_version }}
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.gh_packages_token }}
         run: |
           PUBLISH_ARGS=()
           if [[ -n "$OVERRIDE_VERSION" ]]; then
@@ -314,12 +321,14 @@ jobs:
           ./gradlew release -Prelease.useAutomaticVersion=true
         env:
           GITHUB_TOKEN: ${{ steps.get_workflow_token.outputs.token || env.GITHUB_TOKEN }}
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.gh_packages_token }}
 
       # ── New release_type: publish snapshot ─────────────────────────────────────────
       - name: Publish snapshot
         if: ${{ inputs.create_tag != 'true' && inputs.release_type == 'snapshot' && steps.snapshot.outputs.snapshot_version != '' }}
         env:
           VERSION: ${{ steps.snapshot.outputs.snapshot_version }}
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.gh_packages_token }}
         run: |
           if [[ -n "$SONATYPE_USERNAME" &&
                 -n "$SONATYPE_PASSWORD" &&
@@ -373,6 +382,7 @@ jobs:
         if: ${{ inputs.release_type != 'auto-release-only' && steps.create-tag.outputs.gtag != '' }}
         env:
           VERSION: ${{ steps.create-tag.outputs.gtag }}
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.gh_packages_token }}
         run: |
           if [[ -n "$SONATYPE_USERNAME" &&
                 -n "$SONATYPE_PASSWORD" &&
