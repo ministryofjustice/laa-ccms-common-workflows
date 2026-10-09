@@ -50,7 +50,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.gh_token }}
-      GITHUB_PACKAGES_TOKEN: ${{ secrets.gh_packages_token }}
       GIT_SHA: ${{ github.sha }}
       GIT_BRANCH: ${{ github.ref_name }}
       PACT_BROKER_URL: ${{ secrets.pact_broker_url }}
@@ -100,4 +99,5 @@ jobs:
           PACT_CONSUMER_NAME: ${{ inputs.consumer_name }}
           PACT_CONSUMER_BRANCH: ${{ inputs.consumer_branch }}
           CI_COMMIT_SHA: ${{ steps.get_sha.outputs.sha }}
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.gh_packages_token }}
         run: ./gradlew ${{ inputs.pact_test_task }}

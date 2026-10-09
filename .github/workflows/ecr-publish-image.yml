@@ -97,7 +97,6 @@ jobs:
 
     env:
       GITHUB_TOKEN: ${{ secrets.gh_token }}
-      GITHUB_PACKAGES_TOKEN: ${{ secrets.gh_packages_token }}
       ECR_REGISTRY: ${{ secrets.ecr_registry }}
       ROOT_CERTIFICATE: ${{ secrets.root_certificate }}
       CERTIFICATE_BUNDLE: ${{ secrets.certificate_bundle }}
@@ -218,6 +217,7 @@ jobs:
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry || steps.login-another-ecr.outputs.registry }}
           REPOSITORY: ${{ secrets.ecr_repository }}
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.gh_packages_token }}
         run: |
           if [ "${{ inputs.publish }}" != "true" ]; then
             # Set placeholder values when not publishing
@@ -260,6 +260,7 @@ jobs:
         env:
           SNYK_OAUTH_TOKEN: ${{ steps.auth.outputs.token  }}
           SNYK_TOKEN: ${{ env.SNYK_TOKEN }}
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.gh_packages_token }}
         run: |
           snyk container test ${{ steps.build-image.outputs.image_name }} \
             --org=legal-aid-agency \

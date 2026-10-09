@@ -30,8 +30,10 @@ Complete workflows that may consist of several other reusable workflows and acti
 ### Private GitHub Packages dependencies
 
 The built-in `GITHUB_TOKEN` can only read Maven packages published by the calling repository. To
-resolve packages hosted in another repository, pass a PAT with the `read:packages` scope as the
-optional `gh_packages_token` secret. The Gradle-based workflows (Gradle build & publish, Publish
+resolve packages hosted in another repository, pass a **classic personal access token (PAT)** with
+the `read:packages` scope as the optional `gh_packages_token` secret. GitHub Packages
+authentication requires a classic PAT; fine-grained PATs are not supported. The Gradle-based
+workflows (Gradle build & publish, Publish
 image to ECR, Snyk vulnerability scan / report, Pact and Publish and Pact Provider Webhook) expose
 it to the job as the `GITHUB_PACKAGES_TOKEN` environment variable, separate from `GITHUB_TOKEN`.
 
@@ -230,7 +232,7 @@ jobs:
 | Secret                    | Description                                                                                            | Required |
 |---------------------------|--------------------------------------------------------------------------------------------------------|----------|
 | `gh_token`                | The GitHub token from the calling repository.                                                          | true     |
-| `gh_packages_token`       | Read-only PAT (`read:packages`) for resolving GitHub Packages hosted in other repositories. Exposed as `GITHUB_PACKAGES_TOKEN`. See [Private GitHub Packages dependencies](#private-github-packages-dependencies). | false    |
+| `gh_packages_token`       | Read-only classic PAT (`read:packages`) for resolving GitHub Packages hosted in other repositories. Exposed as `GITHUB_PACKAGES_TOKEN`. See [Private GitHub Packages dependencies](#private-github-packages-dependencies). | false    |
 | `aws_region`              | The AWS Region, if required for build tasks.                                                           | false    |
 | `github_app_id`           | The ID of the GitHub App used for tag creation. Required for release paths.                            | false    |
 | `github_app_private_key`  | The private key of the GitHub App used for tag creation. Required for release paths.                   | false    |
@@ -305,7 +307,7 @@ jobs:
 | Input                   | Description                                                                                                                        | Required | Default |
 |-------------------------|------------------------------------------------------------------------------------------------------------------------------------|----------|---------|
 | `gh_token`              | The github token from the calling repository.                                                                                      | true     |         |
-| `gh_packages_token` | Read-only PAT (`read:packages`) for resolving GitHub Packages hosted in other repositories. Exposed as `GITHUB_PACKAGES_TOKEN`. See [Private GitHub Packages dependencies](#private-github-packages-dependencies). | false    |         |
+| `gh_packages_token` | Read-only classic PAT (`read:packages`) for resolving GitHub Packages hosted in other repositories. Exposed as `GITHUB_PACKAGES_TOKEN`. See [Private GitHub Packages dependencies](#private-github-packages-dependencies). | false    |         |
 | `ecr_region`            | The ECR region to publish to.                                                                                                      | true     |         |
 | `ecr_repository`        | The name of the ECR repository to publish to.                                                                                      | true     |         |
 | `ecr_role_to_assume`    | The AWS role to assume to connect to ECR.                                                                                          | true     |         |
@@ -372,7 +374,7 @@ jobs:
 | Input        | Description                                                                     | Required | Default |
 |--------------|---------------------------------------------------------------------------------|----------|---------|
 | `gh_token`   | The github token from the calling repository.                                   | true     |         |
-| `gh_packages_token` | Read-only PAT (`read:packages`) for resolving GitHub Packages hosted in other repositories. Exposed as `GITHUB_PACKAGES_TOKEN`. See [Private GitHub Packages dependencies](#private-github-packages-dependencies). | false    |         |
+| `gh_packages_token` | Read-only classic PAT (`read:packages`) for resolving GitHub Packages hosted in other repositories. Exposed as `GITHUB_PACKAGES_TOKEN`. See [Private GitHub Packages dependencies](#private-github-packages-dependencies). | false    |         |
 | `snyk_token` | The token to use for Snyk CLI commands. This should be a service account token. | true     |         |
 
 ### Snyk vulnerability report
@@ -425,7 +427,7 @@ jobs:
 | Input        | Description                                                                     | Required | Default |
 |--------------|---------------------------------------------------------------------------------|----------|---------|
 | `gh_token`   | The github token from the calling repository.                                   | true     |         |
-| `gh_packages_token` | Read-only PAT (`read:packages`) for resolving GitHub Packages hosted in other repositories. Exposed as `GITHUB_PACKAGES_TOKEN`. See [Private GitHub Packages dependencies](#private-github-packages-dependencies). | false    |         |
+| `gh_packages_token`    | Read-only classic PAT (`read:packages`) for resolving GitHub Packages hosted in other repositories. Exposed as `GITHUB_PACKAGES_TOKEN`. See [Private GitHub Packages dependencies](#private-github-packages-dependencies). | false    |         |
 | `snyk_token` | The token to use for Snyk CLI commands. This should be a service account token. | true     |         |
 
 ### Update helm chart
@@ -531,7 +533,7 @@ jobs:
 | Input                  | Description                                                        | Required | 
 |------------------------|--------------------------------------------------------------------|----------|
 | `gh_token`             | The github token from the calling repository.                      | true     |         
-| `gh_packages_token`    | Read-only PAT (`read:packages`) for resolving GitHub Packages hosted in other repositories. Exposed as `GITHUB_PACKAGES_TOKEN`. See [Private GitHub Packages dependencies](#private-github-packages-dependencies). | false    |
+| `gh_packages_token`    | Read-only classic PAT (`read:packages`) for resolving GitHub Packages hosted in other repositories. Exposed as `GITHUB_PACKAGES_TOKEN`. See [Private GitHub Packages dependencies](#private-github-packages-dependencies). | false    |
 | `pact_broker_url`      | The Pact Broker URL you want to test against or publish to.        | false    |         
 | `pact_broker_username` | The Pact Broker username. Required if you wish to publish results. | false    |         
 | `pact_broker_password` | The Pact Broker password. Required if you wish to publish results. | false    |         
@@ -603,7 +605,7 @@ jobs:
 | Input                  | Description                                                        | Required | 
 |------------------------|--------------------------------------------------------------------|----------|
 | `gh_token`             | The github token from the calling repository.                      | true     |         
-| `gh_packages_token`    | Read-only PAT (`read:packages`) for resolving GitHub Packages hosted in other repositories. Exposed as `GITHUB_PACKAGES_TOKEN`. See [Private GitHub Packages dependencies](#private-github-packages-dependencies). | false    |
+| `gh_packages_token`    | Read-only classic PAT (`read:packages`) for resolving GitHub Packages hosted in other repositories. Exposed as `GITHUB_PACKAGES_TOKEN`. See [Private GitHub Packages dependencies](#private-github-packages-dependencies). | false    |
 | `pact_broker_url`      | The Pact Broker URL you want to test against or publish to.        | false    |         
 | `pact_broker_username` | The Pact Broker username. Required if you wish to publish results. | false    |         
 | `pact_broker_password` | The Pact Broker password. Required if you wish to publish results. | false    |         

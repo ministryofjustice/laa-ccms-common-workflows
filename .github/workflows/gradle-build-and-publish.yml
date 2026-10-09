@@ -167,7 +167,6 @@ jobs:
 
     env:
       GITHUB_TOKEN: ${{ secrets.gh_token }}
-      GITHUB_PACKAGES_TOKEN: ${{ secrets.gh_packages_token }}
       AWS_REGION: ${{ secrets.aws_region }}
       GITHUB_APP_ID: ${{ secrets.github_app_id }}
       GITHUB_APP_PRIVATE_KEY: ${{ secrets.github_app_private_key }}
@@ -269,6 +268,8 @@ jobs:
 
       # ── Build and test ───────────────────────────────────────────────────────
       - name: Gradle ${{ inputs.build_command }}
+        env:
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.gh_packages_token }}
         run: ./gradlew ${{ inputs.build_command }} ${{ inputs.build_args }}
 
       - name: Test coverage verification
