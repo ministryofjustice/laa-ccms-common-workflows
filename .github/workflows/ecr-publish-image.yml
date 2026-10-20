@@ -85,6 +85,7 @@ on:
         value: ${{ jobs.ecr-publish-image.outputs.published_image_version }}
 
 permissions:
+  actions: read
   contents: read
   id-token: write
   security-events: write
