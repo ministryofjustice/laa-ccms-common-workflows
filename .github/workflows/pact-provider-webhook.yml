@@ -28,6 +28,9 @@ on:
     secrets:
       gh_token:
         required: true
+      gh_packages_token:
+        description: "Read-only PAT (read:packages) for resolving GitHub Packages hosted in other repositories."
+        required: false
       pact_broker_url:
         required: false
       pact_broker_username:
@@ -96,4 +99,5 @@ jobs:
           PACT_CONSUMER_NAME: ${{ inputs.consumer_name }}
           PACT_CONSUMER_BRANCH: ${{ inputs.consumer_branch }}
           CI_COMMIT_SHA: ${{ steps.get_sha.outputs.sha }}
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.gh_packages_token }}
         run: ./gradlew ${{ inputs.pact_test_task }}
