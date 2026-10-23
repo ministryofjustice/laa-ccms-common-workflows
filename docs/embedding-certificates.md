@@ -21,6 +21,18 @@ Rather than modifying the JVM truststore manually with `keytool`, Paketo Buildpa
 
 When the image is built, the certificates are made available to the buildpacks and, when `BP_EMBED_CERTS=true` is configured, embedded in the resulting application image.
 
+## Compromised eMudhra certificates
+
+The `ecr-publish-image` v2 workflow separately protects JVM images from the compromised eMudhra
+intermediate CAs described in
+[CVE-2026-91403](https://openjdk.org/groups/vulnerability/advisories/2026-10-21).
+By default, it adds the 16 affected certificate fingerprints to the JVM blocklist after the image
+is built. This applies to both Paketo and Dockerfile builds and does not remove or replace any
+additional CA certificates configured using this guide.
+
+Additional trusted certificates cannot override the JVM blocklist. Existing application images
+must be rebuilt and redeployed to receive the protection.
+
 ## Overview
 
 The setup has three parts:
