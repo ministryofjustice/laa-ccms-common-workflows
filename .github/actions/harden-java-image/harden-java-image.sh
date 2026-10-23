@@ -6,6 +6,11 @@ FINGERPRINT_FILE="$ACTION_DIR/emudhra-blocked.certs"
 IMAGE=${IMAGE:?IMAGE is required}
 BLOCK_COMPROMISED_CERTIFICATES=${BLOCK_COMPROMISED_CERTIFICATES:-true}
 ENABLE_REVOCATION=${ENABLE_REVOCATION:-false}
+FINGERPRINT_COUNT=$(grep -Ec '^[A-F0-9]{64}$' "$FINGERPRINT_FILE")
+
+log() {
+  printf '[java-image-hardening] %s\n' "$*"
+}
 
 case "$BLOCK_COMPROMISED_CERTIFICATES" in
   true|false) ;;
@@ -18,7 +23,7 @@ case "$ENABLE_REVOCATION" in
 esac
 
 if [[ "$BLOCK_COMPROMISED_CERTIFICATES" == "false" && "$ENABLE_REVOCATION" == "false" ]]; then
-  echo "Java image hardening is disabled"
+  log "Certificate blocking and revocation checks are both disabled; leaving $IMAGE unchanged"
   exit 0
 fi
 
@@ -88,12 +93,24 @@ verify_fingerprints() {
 }
 
 docker image inspect "$IMAGE" >/dev/null
+log "Starting hardening for $IMAGE"
+log "Configuration: block compromised certificates=$BLOCK_COMPROMISED_CERTIFICATES, enable revocation=$ENABLE_REVOCATION"
+log "Using $FINGERPRINT_COUNT compromised certificate fingerprints from the bundled blocklist"
+
+echo "::group::Discover JVM certificate blocklists"
 create_container "$IMAGE"
 source_container=$created_container
 blocklists=()
 while IFS= read -r blocklist; do
   blocklists+=("$blocklist")
 done < <(list_blocklists "$source_container")
+if [[ "${#blocklists[@]}" -eq 0 ]]; then
+  log "No JVM blocked.certs or blacklisted.certs files were discovered"
+else
+  log "Found ${#blocklists[@]} JVM certificate blocklist(s):"
+  printf '  - /%s\n' "${blocklists[@]}"
+fi
+echo "::endgroup::"
 
 mkdir -p "$work_dir/rootfs"
 printf 'FROM %s\n' "$source_tag" > "$work_dir/Dockerfile"
@@ -112,10 +129,15 @@ if [[ "$BLOCK_COMPROMISED_CERTIFICATES" == "true" ]]; then
     destination="$work_dir/rootfs/$blocklist"
     mkdir -p "$(dirname "$destination")"
     docker cp -L "$source_container:/$blocklist" "$destination"
+    entries_before=$(awk '/^[A-F0-9]{64}$/ { entries[$0] = 1 } END { print length(entries) }' "$destination")
     append_fingerprints "$destination"
     verify_fingerprints "$destination"
+    entries_after=$(awk '/^[A-F0-9]{64}$/ { entries[$0] = 1 } END { print length(entries) }' "$destination")
+    log "Patched /$blocklist: added $((entries_after - entries_before)) missing fingerprint(s); all $FINGERPRINT_COUNT affected fingerprints verified"
     printf 'COPY rootfs/%s /%s\n' "$blocklist" "$blocklist" >> "$work_dir/Dockerfile"
   done
+else
+  log "Compromised certificate blocking is disabled; existing JVM blocklists will not be changed"
 fi
 
 if [[ "$ENABLE_REVOCATION" == "true" ]]; then
@@ -132,6 +154,11 @@ if [[ "$ENABLE_REVOCATION" == "true" ]]; then
       sed -n 's/^JAVA_TOOL_OPTIONS=//p' |
       tail -n 1
   )
+  if [[ -n "$java_tool_options" ]]; then
+    log "Preserving the image's existing JAVA_TOOL_OPTIONS while adding revocation settings"
+  else
+    log "The image has no existing JAVA_TOOL_OPTIONS; adding revocation settings"
+  fi
   revocation_options=(
     '-Dcom.sun.net.ssl.checkRevocation=true'
     '-Dcom.sun.security.enableCRLDP=true'
@@ -151,12 +178,19 @@ if [[ "$ENABLE_REVOCATION" == "true" ]]; then
   escaped_options=${escaped_options//\"/\\\"}
   escaped_options=${escaped_options//\$/\\\$}
   printf 'ENV JAVA_TOOL_OPTIONS="%s"\n' "$escaped_options" >> "$work_dir/Dockerfile"
+  log "Configured CRL distribution point and OCSP revocation checks"
+else
+  log "JVM certificate revocation checks remain disabled"
 fi
 
+echo "::group::Rebuild hardened image"
+log "Creating a metadata-preserving overlay layer and replacing local tag $IMAGE"
 docker tag "$IMAGE" "$source_tag"
 docker buildx build --load --tag "$IMAGE" "$work_dir"
+echo "::endgroup::"
 
 if [[ "$BLOCK_COMPROMISED_CERTIFICATES" == "true" ]]; then
+  echo "::group::Verify hardened image"
   create_container "$IMAGE"
   verification_container=$created_container
   for blocklist in "${blocklists[@]}"; do
@@ -164,7 +198,9 @@ if [[ "$BLOCK_COMPROMISED_CERTIFICATES" == "true" ]]; then
     mkdir -p "$(dirname "$verified_file")"
     docker cp -L "$verification_container:/$blocklist" "$verified_file"
     verify_fingerprints "$verified_file"
+    log "Verified all $FINGERPRINT_COUNT affected fingerprints in /$blocklist"
   done
+  echo "::endgroup::"
 fi
 
-echo "Hardened $IMAGE"
+log "Successfully hardened $IMAGE"
