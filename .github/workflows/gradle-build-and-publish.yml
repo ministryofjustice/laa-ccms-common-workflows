@@ -195,7 +195,7 @@ jobs:
       - name: Get app token
         if: ${{ env.GITHUB_APP_ID != '' && env.GITHUB_APP_PRIVATE_KEY != '' }}
         id: get_workflow_token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           app-id: ${{ secrets.github_app_id }}
           private-key: ${{ secrets.github_app_private_key }}
@@ -258,13 +258,13 @@ jobs:
 
       # ── JDK / Gradle setup ──────────────────────────────────────────────────
       - name: Set up JDK ${{ inputs.java_version }}
-        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           java-version: ${{ inputs.java_version }}
           distribution: ${{ inputs.java_distribution }}
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
 
       # ── Build and test ───────────────────────────────────────────────────────
       - name: Gradle ${{ inputs.build_command }}
@@ -435,7 +435,7 @@ jobs:
       # ── Upload reports ────────────────────────────────────────────────────────
       - name: Upload test results
         if: ${{ inputs.junit_results == 'true' }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-results
           path: ${{ inputs.junit_results_path }}
@@ -443,7 +443,7 @@ jobs:
 
       - name: Upload test report
         if: ${{ inputs.junit_report == 'true' }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-report
           path: ${{ inputs.junit_report_path }}
@@ -451,7 +451,7 @@ jobs:
 
       - name: Upload checkstyle report
         if: ${{ inputs.checkstyle_report == 'true' }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: checkstyle-report
           path: ${{ inputs.checkstyle_report_path }}
@@ -459,7 +459,7 @@ jobs:
 
       - name: Upload jacoco coverage report
         if: ${{ inputs.jacoco_coverage_report == 'true' }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: jacoco-coverage-report
           path: ${{ inputs.jacoco_coverage_report_path }}
