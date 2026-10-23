@@ -22,6 +22,7 @@ A library of commonly used GitHub actions and workflows used within LAA CCMS
     - [Pact Can I Merge](#pact-can-i-merge)
     - [Pact Can I Deploy](#pact-can-i-deploy)
     - [Pact Record Deployment](#pact-record-deployment)
+- [Releasing this repository](#releasing-this-repository)
 
 ## Reusable workflows - [`.github/workflows`](.github/workflows)
 
@@ -841,3 +842,27 @@ jobs:
 | `pact_broker_url`      | The Pact Broker URL you want to test against or publish to.                                   | true     |            |
 | `pact_broker_username` | The Pact Broker username.                                                                     | true     |            |
 | `pact_broker_password` | The Pact Broker password.                                                                     | true     |            |
+
+## Releasing this repository
+
+Releases of this repository are created with the manually triggered
+[`Release`](.github/workflows/release.yml) workflow using semantic versioning.
+
+1. Go to **Actions → Release → Run workflow**.
+2. Select the `main` branch.
+3. Choose the `release_type`: `patch`, `minor` or `major`.
+4. Click **Run workflow**.
+
+The matching major tag (e.g. `v2`) is moved to the same commit and a
+GitHub Release is created with auto-generated notes since the previous release.
+
+If releasing a major version, please also document how to migrate to the new
+version in the repository Wiki under [Release Migration Guides](https://github.com/ministryofjustice/laa-ccms-common-workflows/wiki#release-migration-guides).
+
+| Previous tag | `release_type` | New tag  | Major tag  |
+|--------------|----------------|----------|------------|
+| `v2.5.1`     | `patch`        | `v2.5.2` | `v2`       |
+| `v2.5.1`     | `minor`        | `v2.6.0` | `v2`       |
+| `v2.5.1`     | `major`        | `v3.0.0` | `v3` (new) |
+
+Consumers referencing the major tag (e.g. `@v2`) pick up the new release automatically.

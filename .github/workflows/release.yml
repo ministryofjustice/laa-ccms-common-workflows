@@ -1,0 +1,92 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: Type of release to create
+        type: choice
+        required: true
+        options:
+          - patch
+          - minor
+          - major
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Determine next version
+        id: version
+        env:
+          RELEASE_TYPE: ${{ inputs.release_type }}
+        run: |
+          set -euo pipefail
+
+          PREVIOUS_TAG=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1 || true)
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "::error::No previous vMAJOR.MINOR.PATCH tag found to bump from"
+            exit 1
+          fi
+
+          IFS=. read -r MAJOR MINOR PATCH <<< "${PREVIOUS_TAG#v}"
+          case "$RELEASE_TYPE" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
+            *) echo "::error::Unknown release type: $RELEASE_TYPE"; exit 1 ;;
+          esac
+
+          NEXT_TAG="v${MAJOR}.${MINOR}.${PATCH}"
+          if git rev-parse -q --verify "refs/tags/${NEXT_TAG}" >/dev/null; then
+            echo "::error::Tag ${NEXT_TAG} already exists"
+            exit 1
+          fi
+
+          echo "Bumping ${PREVIOUS_TAG} -> ${NEXT_TAG} (${RELEASE_TYPE})"
+          {
+            echo "previous_tag=${PREVIOUS_TAG}"
+            echo "next_tag=${NEXT_TAG}"
+            echo "major_tag=v${MAJOR}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create and push tags
+        env:
+          NEXT_TAG: ${{ steps.version.outputs.next_tag }}
+          MAJOR_TAG: ${{ steps.version.outputs.major_tag }}
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git tag -a "$NEXT_TAG" -m "Release ${NEXT_TAG}" "$GITHUB_SHA"
+          git push origin "refs/tags/${NEXT_TAG}"
+
+          # The parent (major) tag is a moving tag, so it is force-updated to the release commit
+          git tag -f "$MAJOR_TAG" "$GITHUB_SHA"
+          git push --force origin "refs/tags/${MAJOR_TAG}"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEXT_TAG: ${{ steps.version.outputs.next_tag }}
+          PREVIOUS_TAG: ${{ steps.version.outputs.previous_tag }}
+        run: |
+          gh release create "$NEXT_TAG" \
+            --verify-tag \
+            --title "$NEXT_TAG" \
+            --generate-notes \
+            --notes-start-tag "$PREVIOUS_TAG" \
+            --latest
