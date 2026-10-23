@@ -262,7 +262,7 @@ jobs:
 
       - name: Harden JVM certificate validation
         if: ${{ inputs.block_compromised_emudhra_certificates || inputs.enable_java_certificate_revocation }}
-        uses: ministryofjustice/laa-ccms-common-workflows/.github/actions/harden-java-image@fix/ccmspui-1240-ca-compromise
+        uses: ministryofjustice/laa-ccms-common-workflows/.github/actions/harden-java-image@v2
         with:
           image: ${{ steps.build-image.outputs.image_name }}
           block_compromised_certificates: ${{ inputs.block_compromised_emudhra_certificates }}
