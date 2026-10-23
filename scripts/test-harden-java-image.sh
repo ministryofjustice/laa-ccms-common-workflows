@@ -33,8 +33,8 @@ assert_contains() {
 
 fingerprint_count=$(grep -Ec '^[A-F0-9]{64}$' "$ACTION_DIR/emudhra-blocked.certs")
 unique_fingerprint_count=$(grep -E '^[A-F0-9]{64}$' "$ACTION_DIR/emudhra-blocked.certs" | sort -u | wc -l | tr -d ' ')
-[[ "$fingerprint_count" -eq 16 ]] || fail "Expected 16 fingerprints, found $fingerprint_count"
-[[ "$unique_fingerprint_count" -eq 16 ]] || fail "Expected 16 unique fingerprints, found $unique_fingerprint_count"
+[[ "$fingerprint_count" -eq 86 ]] || fail "Expected 86 fingerprints, found $fingerprint_count"
+[[ "$unique_fingerprint_count" -eq 86 ]] || fail "Expected 86 unique fingerprints, found $unique_fingerprint_count"
 
 mkdir -p "$work_dir/base"
 printf 'existing-modern-entry' > "$work_dir/base/blocked.certs"

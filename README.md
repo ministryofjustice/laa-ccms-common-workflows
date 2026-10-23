@@ -258,9 +258,11 @@ the given AWS ECR repository.
 
 Images are hardened against
 [CVE-2026-91403](https://openjdk.org/groups/vulnerability/advisories/2026-10-21)
-by default. The workflow adds all 16 forms of the eight compromised eMudhra intermediate
-certificates to every JVM `blocked.certs` or Java 8 `blacklisted.certs` file in the image. The
-workflow fails rather than publishing an unpatched image if it cannot find a JVM blocklist.
+by default. The bundled OpenJDK mitigation blocklist contains 86 SHA-256 fingerprints: all 16
+certificate forms of the eight compromised eMudhra intermediates, plus 70 certificates already
+present in the updated upstream blocklist. The workflow merges any missing fingerprints into every
+JVM `blocked.certs` or Java 8 `blacklisted.certs` file in the image without removing existing
+entries. It fails rather than publishing an unpatched image if it cannot find a JVM blocklist.
 Existing images must be rebuilt and redeployed to receive this protection.
 
 > [!NOTE]
