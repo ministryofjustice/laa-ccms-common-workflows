@@ -25,15 +25,16 @@ When the image is built, the certificates are made available to the buildpacks a
 
 The `ecr-publish-image` v2 workflow separately protects JVM images from the compromised eMudhra
 intermediate CAs described in
-[CVE-2026-91403](https://openjdk.org/groups/vulnerability/advisories/2026-10-21).
-By default, it merges the 86 SHA-256 fingerprints from the updated OpenJDK mitigation blocklist
-into the JVM blocklist after the image is built. These include all 16 certificate forms of the
-eight compromised eMudhra intermediates and 70 certificates already present in the upstream
-blocklist. This applies to both Paketo and Dockerfile builds and does not remove or replace any
-existing blocklist entries or additional CA certificates configured using this guide.
+[CVE-2026-114820](https://openjdk.org/emudhra). By default, it follows the latest OpenJDK guidance
+and removes the certificates represented by the `emsignrootcag1 [jdk]`,
+`emsignrootcag2 [jdk]`, `emsigneccrootcag3 [jdk]`, and `comodoaaaca [jdk]` standard aliases from
+every JVM `cacerts` truststore after the image is built. The workflow matches X.509 subject common
+names so that it also works when a JVM vendor uses different aliases.
 
-Additional trusted certificates cannot override the JVM blocklist. Existing application images
-must be rebuilt and redeployed to receive the protection.
+This applies to both Paketo and Dockerfile builds. Other truststore entries and additional CA
+certificates configured using this guide are preserved. Do not add any of the four removed roots
+through a certificate binding. Existing application images must be rebuilt and redeployed to
+receive the protection.
 
 ## Overview
 

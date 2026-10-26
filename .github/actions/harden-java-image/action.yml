@@ -1,12 +1,12 @@
 name: Harden Java image
-description: Block the compromised eMudhra intermediates and optionally enable JVM revocation checks
+description: Remove roots identified by the OpenJDK eMudhra guidance and optionally enable JVM revocation checks
 
 inputs:
   image:
     description: The local image name and tag to harden
     required: true
   block_compromised_certificates:
-    description: Add the compromised eMudhra certificate fingerprints to each JVM blocklist
+    description: Remove the four root certificates identified by the OpenJDK eMudhra guidance
     required: false
     default: 'true'
   enable_revocation:

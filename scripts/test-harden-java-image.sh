@@ -31,18 +31,48 @@ assert_contains() {
   [[ "$value" == *"$expected"* ]] || fail "Expected '$value' to contain '$expected'"
 }
 
-fingerprint_count=$(grep -Ec '^[A-F0-9]{64}$' "$ACTION_DIR/emudhra-blocked.certs")
-unique_fingerprint_count=$(grep -E '^[A-F0-9]{64}$' "$ACTION_DIR/emudhra-blocked.certs" | sort -u | wc -l | tr -d ' ')
-[[ "$fingerprint_count" -eq 86 ]] || fail "Expected 86 fingerprints, found $fingerprint_count"
-[[ "$unique_fingerprint_count" -eq 86 ]] || fail "Expected 86 unique fingerprints, found $unique_fingerprint_count"
+root_aliases=(
+  'vendor-emsign-g1'
+  'vendor-emsign-g2'
+  'vendor-emsign-ecc-g3'
+  'vendor-aaa-ca'
+)
+root_common_names=(
+  'emSign Root CA - G1'
+  'emSign Root CA - G2'
+  'emSign ECC Root CA - G3'
+  'AAA Certificate Services'
+)
+safe_alias='unaffected-test-root'
+safe_common_name='Unaffected Test Root'
 
 mkdir -p "$work_dir/base"
-printf 'existing-modern-entry' > "$work_dir/base/blocked.certs"
-printf 'existing-java-8-entry\n' > "$work_dir/base/blacklisted.certs"
+for index in "${!root_aliases[@]}"; do
+  keytool -genkeypair \
+    -alias "${root_aliases[$index]}" \
+    -keyalg RSA \
+    -keysize 2048 \
+    -validity 1 \
+    -dname "CN=${root_common_names[$index]}" \
+    -keystore "$work_dir/base/cacerts" \
+    -storepass changeit \
+    -keypass changeit \
+    -noprompt >/dev/null 2>&1
+done
+keytool -genkeypair \
+  -alias "$safe_alias" \
+  -keyalg RSA \
+  -keysize 2048 \
+  -validity 1 \
+  -dname "CN=$safe_common_name" \
+  -keystore "$work_dir/base/cacerts" \
+  -storepass changeit \
+  -keypass changeit \
+  -noprompt >/dev/null 2>&1
 cat > "$work_dir/base/Dockerfile" <<'EOF'
 FROM scratch
-COPY blocked.certs /opt/java/lib/security/blocked.certs
-COPY blacklisted.certs /opt/java/jre/lib/security/blacklisted.certs
+COPY cacerts /opt/java/lib/security/cacerts
+COPY cacerts /opt/java/jre/lib/security/cacerts
 ENV JAVA_TOOL_OPTIONS="-Xmx256m"
 LABEL test.metadata="preserved"
 USER 1001
@@ -61,24 +91,28 @@ IMAGE="$HARDENED_IMAGE" \
 container=$(docker create "$HARDENED_IMAGE")
 containers+=("$container")
 mkdir -p "$work_dir/result"
-docker cp "$container:/opt/java/lib/security/blocked.certs" "$work_dir/result/blocked.certs"
-docker cp "$container:/opt/java/jre/lib/security/blacklisted.certs" "$work_dir/result/blacklisted.certs"
+docker cp "$container:/opt/java/lib/security/cacerts" "$work_dir/result/modern-cacerts"
+docker cp "$container:/opt/java/jre/lib/security/cacerts" "$work_dir/result/java-8-cacerts"
 docker cp "$container:/opt/laa-java-security/revocation.security" "$work_dir/result/revocation.security"
 
-grep -Fqx 'existing-modern-entry' "$work_dir/result/blocked.certs" ||
-  fail "Modern blocklist entry was not preserved"
-grep -Fqx 'existing-java-8-entry' "$work_dir/result/blacklisted.certs" ||
-  fail "Java 8 blocklist entry was not preserved"
 grep -Fqx 'ocsp.enable=true' "$work_dir/result/revocation.security" ||
   fail "OCSP was not enabled"
 
-while IFS= read -r fingerprint; do
-  [[ "$fingerprint" =~ ^[A-F0-9]{64}$ ]] || continue
-  [[ $(grep -Fxc "$fingerprint" "$work_dir/result/blocked.certs") -eq 1 ]] ||
-    fail "Modern blocklist does not contain $fingerprint exactly once"
-  [[ $(grep -Fxc "$fingerprint" "$work_dir/result/blacklisted.certs") -eq 1 ]] ||
-    fail "Java 8 blocklist does not contain $fingerprint exactly once"
-done < "$ACTION_DIR/emudhra-blocked.certs"
+for truststore in "$work_dir/result/modern-cacerts" "$work_dir/result/java-8-cacerts"; do
+  for alias in "${root_aliases[@]}"; do
+    if keytool -list \
+      -keystore "$truststore" \
+      -storepass changeit \
+      -alias "$alias" >/dev/null 2>&1; then
+      fail "Affected root '$alias' remains in $truststore"
+    fi
+  done
+  keytool -list \
+    -keystore "$truststore" \
+    -storepass changeit \
+    -alias "$safe_alias" >/dev/null 2>&1 ||
+    fail "Unaffected certificate was removed from $truststore"
+done
 
 java_tool_options=$(
   docker image inspect \
@@ -126,6 +160,7 @@ mkdir -p "$work_dir/no-java"
 cat > "$work_dir/no-java/Dockerfile" <<'EOF'
 FROM scratch
 LABEL test.image="no-java"
+CMD ["/not-used"]
 EOF
 docker buildx build --load --tag "$NO_JAVA_IMAGE" "$work_dir/no-java"
 
@@ -133,7 +168,7 @@ if IMAGE="$NO_JAVA_IMAGE" \
   BLOCK_COMPROMISED_CERTIFICATES=true \
   ENABLE_REVOCATION=false \
   "$ACTION_DIR/harden-java-image.sh"; then
-  fail "Certificate blocking should fail when no JVM blocklist is present"
+  fail "Root removal should fail when no JVM truststore is present"
 fi
 
 image_id_before=$(docker image inspect --format '{{.Id}}' "$NO_JAVA_IMAGE")
