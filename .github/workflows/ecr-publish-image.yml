@@ -52,7 +52,7 @@ on:
         type: boolean
         default: false
       block_compromised_emudhra_certificates:
-        description: Block the compromised eMudhra intermediate CA certificates in JVM images.
+        description: Remove the four root CAs identified by the OpenJDK eMudhra guidance from JVM image truststores.
         required: false
         type: boolean
         default: true
@@ -262,7 +262,7 @@ jobs:
 
       - name: Harden JVM certificate validation
         if: ${{ inputs.block_compromised_emudhra_certificates || inputs.enable_java_certificate_revocation }}
-        uses: ministryofjustice/laa-ccms-common-workflows/.github/actions/harden-java-image@7b0a3b0db54051d7544717da182bdc98c803cd60 # v2.5.2
+        uses: ministryofjustice/laa-ccms-common-workflows/.github/actions/harden-java-image@a63b9bd867afac4eebb072d1ea4f9b85bc181944 # v2.5.3
         with:
           image: ${{ steps.build-image.outputs.image_name }}
           block_compromised_certificates: ${{ inputs.block_compromised_emudhra_certificates }}
@@ -272,14 +272,14 @@ jobs:
         if: ${{ inputs.tag_with_latest && (inputs.block_compromised_emudhra_certificates || inputs.enable_java_certificate_revocation) }}
         run: docker tag "${{ steps.build-image.outputs.image_name }}" "${{ steps.build-image.outputs.latest_image_name }}"
 
-      - name: Warn when eMudhra certificate blocking is disabled
+      - name: Warn when eMudhra root removal is disabled
         if: ${{ !inputs.block_compromised_emudhra_certificates }}
         run: |
-          echo "::warning title=eMudhra certificate blocking disabled::The published JVM image may trust certificates issued by the compromised eMudhra intermediates."
+          echo "::warning title=eMudhra root removal disabled::The published JVM image may trust certificates issued by the compromised eMudhra intermediates."
           {
-            echo "## ⚠️ eMudhra certificate blocking disabled"
+            echo "## ⚠️ eMudhra root removal disabled"
             echo ""
-            echo "The image was not patched for CVE-2026-91403. Only disable this protection for an image that does not contain a JVM."
+            echo "The image was not patched for CVE-2026-114820. Only disable this protection for an image that does not contain a JVM."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Install Snyk CLI
