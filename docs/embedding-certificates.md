@@ -36,6 +36,11 @@ certificates configured using this guide are preserved. Do not add any of the fo
 through a certificate binding. Existing application images must be rebuilt and redeployed to
 receive the protection.
 
+If the application sets `javax.net.ssl.trustStorePassword` to a value other than `changeit`, pass
+the same secret as `tls_keystore_password` to the reusable workflow. The hardening action uses
+that value to protect the updated JVM truststores. If the secret is omitted, the standard
+`changeit` password is retained.
+
 ## Overview
 
 The setup has three parts:

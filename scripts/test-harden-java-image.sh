@@ -12,9 +12,11 @@ containers=()
 
 cleanup() {
   local container
+  set +u
   for container in "${containers[@]}"; do
     docker rm -f "$container" >/dev/null 2>&1 || true
   done
+  set -u
   docker image rm "$BASE_IMAGE" "$HARDENED_IMAGE" "$NO_JAVA_IMAGE" >/dev/null 2>&1 || true
   rm -rf "$work_dir"
 }
@@ -45,6 +47,8 @@ root_common_names=(
 )
 safe_alias='unaffected-test-root'
 safe_common_name='Unaffected Test Root'
+source_truststore_password='changeit'
+application_truststore_password='application-password'
 
 mkdir -p "$work_dir/base"
 for index in "${!root_aliases[@]}"; do
@@ -55,8 +59,8 @@ for index in "${!root_aliases[@]}"; do
     -validity 1 \
     -dname "CN=${root_common_names[$index]}" \
     -keystore "$work_dir/base/cacerts" \
-    -storepass changeit \
-    -keypass changeit \
+    -storepass "$source_truststore_password" \
+    -keypass "$source_truststore_password" \
     -noprompt >/dev/null 2>&1
 done
 keytool -genkeypair \
@@ -66,8 +70,8 @@ keytool -genkeypair \
   -validity 1 \
   -dname "CN=$safe_common_name" \
   -keystore "$work_dir/base/cacerts" \
-  -storepass changeit \
-  -keypass changeit \
+  -storepass "$source_truststore_password" \
+  -keypass "$source_truststore_password" \
   -noprompt >/dev/null 2>&1
 cat > "$work_dir/base/Dockerfile" <<'EOF'
 FROM scratch
@@ -86,6 +90,7 @@ metadata_before=$(docker image inspect --format '{{json .Config}}' "$HARDENED_IM
 IMAGE="$HARDENED_IMAGE" \
   BLOCK_COMPROMISED_CERTIFICATES=true \
   ENABLE_REVOCATION=true \
+  TRUSTSTORE_PASSWORD="$application_truststore_password" \
   "$ACTION_DIR/harden-java-image.sh"
 
 container=$(docker create "$HARDENED_IMAGE")
@@ -102,16 +107,21 @@ for truststore in "$work_dir/result/modern-cacerts" "$work_dir/result/java-8-cac
   for alias in "${root_aliases[@]}"; do
     if keytool -list \
       -keystore "$truststore" \
-      -storepass changeit \
+      -storepass "$application_truststore_password" \
       -alias "$alias" >/dev/null 2>&1; then
       fail "Affected root '$alias' remains in $truststore"
     fi
   done
   keytool -list \
     -keystore "$truststore" \
-    -storepass changeit \
+    -storepass "$application_truststore_password" \
     -alias "$safe_alias" >/dev/null 2>&1 ||
     fail "Unaffected certificate was removed from $truststore"
+  if keytool -list \
+    -keystore "$truststore" \
+    -storepass "$source_truststore_password" >/dev/null 2>&1; then
+    fail "$truststore still accepts the source truststore password"
+  fi
 done
 
 java_tool_options=$(
@@ -140,6 +150,7 @@ done
 IMAGE="$HARDENED_IMAGE" \
   BLOCK_COMPROMISED_CERTIFICATES=true \
   ENABLE_REVOCATION=true \
+  TRUSTSTORE_PASSWORD="$application_truststore_password" \
   "$ACTION_DIR/harden-java-image.sh"
 
 java_tool_options=$(
