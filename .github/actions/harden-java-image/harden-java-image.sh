@@ -4,7 +4,8 @@ set -euo pipefail
 IMAGE=${IMAGE:?IMAGE is required}
 BLOCK_COMPROMISED_CERTIFICATES=${BLOCK_COMPROMISED_CERTIFICATES:-true}
 ENABLE_REVOCATION=${ENABLE_REVOCATION:-false}
-TRUSTSTORE_PASSWORD=changeit
+DEFAULT_TRUSTSTORE_PASSWORD=changeit
+TARGET_TRUSTSTORE_PASSWORD=${TRUSTSTORE_PASSWORD:-$DEFAULT_TRUSTSTORE_PASSWORD}
 ROOT_CERTIFICATE_COUNT=4
 CERTIFICATE_REMOVER_SOURCE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/RemoveCertificates.java"
 
@@ -38,9 +39,11 @@ containers=()
 
 cleanup() {
   local container
+  set +u
   for container in "${containers[@]}"; do
     docker rm -f "$container" >/dev/null 2>&1 || true
   done
+  set -u
   docker image rm "$source_tag" >/dev/null 2>&1 || true
   rm -rf "$work_dir"
 }
@@ -64,14 +67,35 @@ list_truststores() {
 run_certificate_remover() {
   local mode=$1
   local truststore=$2
-  java -cp "$work_dir/certificate-remover" \
-    RemoveCertificates "$mode" "$truststore" "$TRUSTSTORE_PASSWORD"
+  local source_password=$3
+  SOURCE_TRUSTSTORE_PASSWORD=$source_password \
+    TARGET_TRUSTSTORE_PASSWORD=$TARGET_TRUSTSTORE_PASSWORD \
+    java -cp "$work_dir/certificate-remover" \
+      RemoveCertificates "$mode" "$truststore"
+}
+
+find_source_password() {
+  local truststore=$1
+  local password
+
+  for password in "$TARGET_TRUSTSTORE_PASSWORD" "$DEFAULT_TRUSTSTORE_PASSWORD"; do
+    if keytool -list -keystore "$truststore" -storepass "$password" >/dev/null 2>&1; then
+      source_password=$password
+      return 0
+    fi
+  done
+  return 1
 }
 
 docker image inspect "$IMAGE" >/dev/null
 log "Starting hardening for $IMAGE"
 log "Configuration: remove affected root certificates=$BLOCK_COMPROMISED_CERTIFICATES, enable revocation=$ENABLE_REVOCATION"
 log "Following OpenJDK guidance to remove $ROOT_CERTIFICATE_COUNT root certificates"
+if [[ -n "${TRUSTSTORE_PASSWORD:-}" ]]; then
+  log "Hardened JVM truststores will use the configured application truststore password"
+else
+  log "No application truststore password was configured; using the standard cacerts password"
+fi
 
 echo "::group::Discover JVM truststores"
 create_container "$IMAGE"
@@ -111,12 +135,12 @@ if [[ "$BLOCK_COMPROMISED_CERTIFICATES" == "true" ]]; then
     mkdir -p "$(dirname "$destination")"
     docker cp -L "$source_container:/$truststore" "$destination"
 
-    if ! keytool -list -keystore "$destination" -storepass "$TRUSTSTORE_PASSWORD" >/dev/null 2>&1; then
-      echo "::error::Unable to read JVM truststore /$truststore with the standard cacerts password"
+    if ! find_source_password "$destination"; then
+      echo "::error::Unable to read JVM truststore /$truststore with the configured or standard cacerts password"
       exit 1
     fi
 
-    removal_output=$(run_certificate_remover remove "$destination")
+    removal_output=$(run_certificate_remover remove "$destination" "$source_password")
     removed_count=0
     while IFS=$'\t' read -r record alias common_name; do
       if [[ "$record" == "REMOVED" ]]; then
@@ -189,7 +213,7 @@ if [[ "$BLOCK_COMPROMISED_CERTIFICATES" == "true" ]]; then
     verified_file="$work_dir/verified/$truststore"
     mkdir -p "$(dirname "$verified_file")"
     docker cp -L "$verification_container:/$truststore" "$verified_file"
-    run_certificate_remover verify "$verified_file"
+    run_certificate_remover verify "$verified_file" "$TARGET_TRUSTSTORE_PASSWORD"
     log "Verified all $ROOT_CERTIFICATE_COUNT affected root subjects are absent from /$truststore"
   done
   echo "::endgroup::"

@@ -25,15 +25,16 @@ public final class RemoveCertificates {
     }
 
     public static void main(String[] args) throws Exception {
-        if (args.length != 3 || (!"remove".equals(args[0]) && !"verify".equals(args[0]))) {
-            System.err.println("Usage: RemoveCertificates <remove|verify> <keystore> <password>");
+        if (args.length != 2 || (!"remove".equals(args[0]) && !"verify".equals(args[0]))) {
+            System.err.println("Usage: RemoveCertificates <remove|verify> <keystore>");
             System.exit(2);
         }
 
         String mode = args[0];
         String path = args[1];
-        char[] password = args[2].toCharArray();
-        KeyStore keyStore = load(path, password);
+        char[] sourcePassword = requiredPassword("SOURCE_TRUSTSTORE_PASSWORD");
+        char[] targetPassword = requiredPassword("TARGET_TRUSTSTORE_PASSWORD");
+        KeyStore keyStore = load(path, sourcePassword);
         List<String> matchingAliases = findMatchingAliases(keyStore);
 
         if ("verify".equals(mode)) {
@@ -50,19 +51,25 @@ public final class RemoveCertificates {
             System.out.println("REMOVED\t" + alias + "\t" + commonName);
         }
 
-        if (!matchingAliases.isEmpty()) {
-            FileOutputStream output = new FileOutputStream(path);
-            try {
-                keyStore.store(output, password);
-            } finally {
-                output.close();
-            }
+        FileOutputStream output = new FileOutputStream(path);
+        try {
+            keyStore.store(output, targetPassword);
+        } finally {
+            output.close();
         }
 
         if (!findMatchingAliases(keyStore).isEmpty()) {
             throw new IllegalStateException("Affected root certificates remain after removal");
         }
         System.out.println("REMOVED_COUNT\t" + matchingAliases.size());
+    }
+
+    private static char[] requiredPassword(String name) {
+        String value = System.getenv(name);
+        if (value == null || value.isEmpty()) {
+            throw new IllegalArgumentException(name + " is required");
+        }
+        return value.toCharArray();
     }
 
     private static KeyStore load(String path, char[] password) throws Exception {

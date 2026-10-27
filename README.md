@@ -355,7 +355,7 @@ contains no JVM. The workflow emits a warning when this protection is disabled.
 | `snyk_client_secret`    | The API client secret for Snyk. Required when `image_scan=true` and `snyk_token` not set.                                          | false    |         |
 | `certificate_bundle`    | The bundle of certificates to embed into the image. These will be added to the JVM Truststore.                                     | false    |         |
 | `binding_directory`     | The directory used for binding the root certificates. See [Paketo Bindings](https://paketo.io/docs/howto/configuration/#bindings). | false    |         |
-| `tls_keystore_password` | Keystore password. This will be exposed as the TLS_KEYSTORE_PASSWORD environment variable.                                         | false    |         |
+| `tls_keystore_password` | Keystore password. This is exposed as `TLS_KEYSTORE_PASSWORD` during the build and used to protect hardened JVM truststores so it matches `javax.net.ssl.trustStorePassword`. If omitted, the standard `changeit` password is used. | false | |
 | `root_certificate` ⚠️   | **Deprecated.** Use `certificate_bundle` instead.                                                                                  | false    |         |
 
 #### Outputs
