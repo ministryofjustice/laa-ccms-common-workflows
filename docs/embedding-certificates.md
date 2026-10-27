@@ -36,10 +36,12 @@ certificates configured using this guide are preserved. Do not add any of the fo
 through a certificate binding. Existing application images must be rebuilt and redeployed to
 receive the protection.
 
-If the application sets `javax.net.ssl.trustStorePassword` to a value other than `changeit`, pass
-the same secret as `tls_keystore_password` to the reusable workflow. The hardening action uses
-that value to protect the updated JVM truststores. If the secret is omitted, the standard
-`changeit` password is retained.
+The hardening action preserves the JVM truststore's existing format and password. Paketo's
+`openssl-certificate-loader` requires JKS truststores to use `changeit` and passwordless PKCS12
+truststores to remain passwordless. The `tls_keystore_password` workflow secret is for an
+application/server keystore and does not change the JVM `cacerts` password. Applications using
+the Paketo JVM truststore should omit `javax.net.ssl.trustStorePassword` or set it to `changeit`;
+do not set it to `tls_keystore_password`.
 
 ## Overview
 

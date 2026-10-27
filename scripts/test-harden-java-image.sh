@@ -59,6 +59,7 @@ for index in "${!root_aliases[@]}"; do
     -validity 1 \
     -dname "CN=${root_common_names[$index]}" \
     -keystore "$work_dir/base/cacerts" \
+    -storetype JKS \
     -storepass "$source_truststore_password" \
     -keypass "$source_truststore_password" \
     -noprompt >/dev/null 2>&1
@@ -70,13 +71,14 @@ keytool -genkeypair \
   -validity 1 \
   -dname "CN=$safe_common_name" \
   -keystore "$work_dir/base/cacerts" \
+  -storetype JKS \
   -storepass "$source_truststore_password" \
   -keypass "$source_truststore_password" \
   -noprompt >/dev/null 2>&1
 cat > "$work_dir/base/Dockerfile" <<'EOF'
 FROM scratch
-COPY cacerts /opt/java/lib/security/cacerts
-COPY cacerts /opt/java/jre/lib/security/cacerts
+COPY --chown=1001:1001 --chmod=0644 cacerts /opt/java/lib/security/cacerts
+COPY --chown=1001:1001 --chmod=0644 cacerts /opt/java/jre/lib/security/cacerts
 ENV JAVA_TOOL_OPTIONS="-Xmx256m"
 LABEL test.metadata="preserved"
 USER 1001
@@ -100,6 +102,35 @@ docker cp "$container:/opt/java/lib/security/cacerts" "$work_dir/result/modern-c
 docker cp "$container:/opt/java/jre/lib/security/cacerts" "$work_dir/result/java-8-cacerts"
 docker cp "$container:/opt/laa-java-security/revocation.security" "$work_dir/result/revocation.security"
 
+for truststore_path in \
+  opt/java/lib/security/cacerts \
+  opt/java/jre/lib/security/cacerts; do
+  metadata=$(
+    docker export "$container" |
+      tar --numeric-owner -tvf - "$truststore_path" |
+      awk '
+        $2 ~ /^[0-9]+\/[0-9]+$/ {
+          split($2, owner, "/")
+          print owner[1] ":" owner[2] ":" $1
+          found = 1
+          exit
+        }
+        $3 ~ /^[0-9]+$/ && $4 ~ /^[0-9]+$/ {
+          print $3 ":" $4 ":" $1
+          found = 1
+          exit
+        }
+        END {
+          if (!found) {
+            exit 1
+          }
+        }
+      '
+  )
+  [[ "$metadata" == '1001:1001:-rw-r--r--' ]] ||
+    fail "Truststore metadata changed for /$truststore_path: $metadata"
+done
+
 grep -Fqx 'ocsp.enable=true' "$work_dir/result/revocation.security" ||
   fail "OCSP was not enabled"
 
@@ -107,21 +138,23 @@ for truststore in "$work_dir/result/modern-cacerts" "$work_dir/result/java-8-cac
   for alias in "${root_aliases[@]}"; do
     if keytool -list \
       -keystore "$truststore" \
-      -storepass "$application_truststore_password" \
+      -storetype JKS \
+      -storepass "$source_truststore_password" \
       -alias "$alias" >/dev/null 2>&1; then
       fail "Affected root '$alias' remains in $truststore"
     fi
   done
   keytool -list \
     -keystore "$truststore" \
-    -storepass "$application_truststore_password" \
+    -storetype JKS \
+    -storepass "$source_truststore_password" \
     -alias "$safe_alias" >/dev/null 2>&1 ||
     fail "Unaffected certificate was removed from $truststore"
-  if keytool -list \
+  keytool -list \
     -keystore "$truststore" \
-    -storepass "$source_truststore_password" >/dev/null 2>&1; then
-    fail "$truststore still accepts the source truststore password"
-  fi
+    -storetype JKS \
+    -storepass "$source_truststore_password" >/dev/null 2>&1 ||
+    fail "$truststore no longer accepts the password required by the Paketo certificate loader"
 done
 
 java_tool_options=$(
