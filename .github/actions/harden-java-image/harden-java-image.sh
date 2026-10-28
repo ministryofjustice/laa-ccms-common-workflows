@@ -4,8 +4,6 @@ set -euo pipefail
 IMAGE=${IMAGE:?IMAGE is required}
 BLOCK_COMPROMISED_CERTIFICATES=${BLOCK_COMPROMISED_CERTIFICATES:-true}
 ENABLE_REVOCATION=${ENABLE_REVOCATION:-false}
-DEFAULT_TRUSTSTORE_PASSWORD=changeit
-TARGET_TRUSTSTORE_PASSWORD=${TRUSTSTORE_PASSWORD:-$DEFAULT_TRUSTSTORE_PASSWORD}
 ROOT_CERTIFICATE_COUNT=4
 CERTIFICATE_REMOVER_SOURCE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/RemoveCertificates.java"
 
@@ -56,54 +54,60 @@ create_container() {
 }
 
 list_truststores() {
-  local container=$1
-  docker export "$container" |
-    tar -tf - |
+  local archive=$1
+  tar -tf "$archive" |
     sed 's#^\./##' |
     grep -E '(^|/)(jre/)?lib/security/cacerts$' |
     sort -u || true
 }
 
+truststore_metadata() {
+  local archive=$1
+  local truststore=$2
+
+  tar --numeric-owner -tvf "$archive" "$truststore" |
+    awk '
+      $2 ~ /^[0-9]+\/[0-9]+$/ {
+        split($2, owner, "/")
+        print owner[1] ":" owner[2] ":" $1
+        found = 1
+        exit
+      }
+      $3 ~ /^[0-9]+$/ && $4 ~ /^[0-9]+$/ {
+        print $3 ":" $4 ":" $1
+        found = 1
+        exit
+      }
+      END {
+        if (!found) {
+          exit 1
+        }
+      }
+    '
+}
+
 run_certificate_remover() {
   local mode=$1
   local truststore=$2
-  local source_password=$3
-  SOURCE_TRUSTSTORE_PASSWORD=$source_password \
-    TARGET_TRUSTSTORE_PASSWORD=$TARGET_TRUSTSTORE_PASSWORD \
-    java -cp "$work_dir/certificate-remover" \
-      RemoveCertificates "$mode" "$truststore"
-}
-
-find_source_password() {
-  local truststore=$1
-  local password
-
-  for password in "$TARGET_TRUSTSTORE_PASSWORD" "$DEFAULT_TRUSTSTORE_PASSWORD"; do
-    if keytool -list -keystore "$truststore" -storepass "$password" >/dev/null 2>&1; then
-      source_password=$password
-      return 0
-    fi
-  done
-  return 1
+  java -cp "$work_dir/certificate-remover" \
+    RemoveCertificates "$mode" "$truststore"
 }
 
 docker image inspect "$IMAGE" >/dev/null
 log "Starting hardening for $IMAGE"
 log "Configuration: remove affected root certificates=$BLOCK_COMPROMISED_CERTIFICATES, enable revocation=$ENABLE_REVOCATION"
 log "Following OpenJDK guidance to remove $ROOT_CERTIFICATE_COUNT root certificates"
-if [[ -n "${TRUSTSTORE_PASSWORD:-}" ]]; then
-  log "Hardened JVM truststores will use the configured application truststore password"
-else
-  log "No application truststore password was configured; using the standard cacerts password"
-fi
+log "The existing truststore format and password will be preserved for JVM and Paketo compatibility"
 
 echo "::group::Discover JVM truststores"
 create_container "$IMAGE"
 source_container=$created_container
+source_archive="$work_dir/source-image.tar"
+docker export --output "$source_archive" "$source_container"
 truststores=()
 while IFS= read -r truststore; do
   truststores+=("$truststore")
-done < <(list_truststores "$source_container")
+done < <(list_truststores "$source_archive")
 if [[ "${#truststores[@]}" -eq 0 ]]; then
   log "No JVM cacerts truststores were discovered"
 else
@@ -121,26 +125,31 @@ if [[ "$BLOCK_COMPROMISED_CERTIFICATES" == "true" ]]; then
     exit 1
   fi
 
+  echo "::group::Remove affected root certificates"
+  log "Compiling the truststore helper for Java 8 compatibility"
   mkdir -p "$work_dir/certificate-remover"
   javac -source 8 -target 8 -Xlint:-options \
     -d "$work_dir/certificate-remover" \
     "$CERTIFICATE_REMOVER_SOURCE"
 
+  truststore_metadata_values=()
   for truststore in "${truststores[@]}"; do
     if [[ "$truststore" == /* || "$truststore" == *..* || "$truststore" =~ [[:space:]] ]]; then
       echo "::error::Unsupported JVM truststore path in $IMAGE: $truststore"
       exit 1
     fi
+    metadata=$(truststore_metadata "$source_archive" "$truststore")
+    truststore_metadata_values+=("$metadata")
+    IFS=: read -r truststore_uid truststore_gid truststore_mode <<< "$metadata"
+    log "Processing /$truststore (owner $truststore_uid:$truststore_gid, mode $truststore_mode)"
     destination="$work_dir/rootfs/$truststore"
     mkdir -p "$(dirname "$destination")"
     docker cp -L "$source_container:/$truststore" "$destination"
 
-    if ! find_source_password "$destination"; then
-      echo "::error::Unable to read JVM truststore /$truststore with the configured or standard cacerts password"
+    if ! removal_output=$(run_certificate_remover remove "$destination"); then
+      echo "::error::Unable to read or update JVM truststore /$truststore using a standard JDK truststore password"
       exit 1
     fi
-
-    removal_output=$(run_certificate_remover remove "$destination" "$source_password")
     removed_count=0
     while IFS=$'\t' read -r record alias common_name; do
       if [[ "$record" == "REMOVED" ]]; then
@@ -150,13 +159,21 @@ if [[ "$BLOCK_COMPROMISED_CERTIFICATES" == "true" ]]; then
       fi
     done <<< "$removal_output"
     log "Patched /$truststore: removed $removed_count affected root certificate(s); all $ROOT_CERTIFICATE_COUNT subjects are absent"
-    printf 'COPY rootfs/%s /%s\n' "$truststore" "$truststore" >> "$work_dir/Dockerfile"
+    log "The overlay will preserve owner $truststore_uid:$truststore_gid and the existing file mode"
+    printf 'COPY --chown=%s:%s rootfs/%s /%s\n' \
+      "$truststore_uid" \
+      "$truststore_gid" \
+      "$truststore" \
+      "$truststore" \
+      >> "$work_dir/Dockerfile"
   done
+  echo "::endgroup::"
 else
   log "Affected root certificate removal is disabled; JVM truststores will not be changed"
 fi
 
 if [[ "$ENABLE_REVOCATION" == "true" ]]; then
+  echo "::group::Configure JVM certificate revocation"
   mkdir -p "$work_dir/rootfs/opt/laa-java-security"
   printf 'ocsp.enable=true\n' > "$work_dir/rootfs/opt/laa-java-security/revocation.security"
   printf '%s\n' \
@@ -195,6 +212,7 @@ if [[ "$ENABLE_REVOCATION" == "true" ]]; then
   escaped_options=${escaped_options//\$/\\\$}
   printf 'ENV JAVA_TOOL_OPTIONS="%s"\n' "$escaped_options" >> "$work_dir/Dockerfile"
   log "Configured CRL distribution point and OCSP revocation checks"
+  echo "::endgroup::"
 else
   log "JVM certificate revocation checks remain disabled"
 fi
@@ -209,14 +227,24 @@ if [[ "$BLOCK_COMPROMISED_CERTIFICATES" == "true" ]]; then
   echo "::group::Verify hardened image"
   create_container "$IMAGE"
   verification_container=$created_container
-  for truststore in "${truststores[@]}"; do
+  verification_archive="$work_dir/verified-image.tar"
+  docker export --output "$verification_archive" "$verification_container"
+  for index in "${!truststores[@]}"; do
+    truststore=${truststores[$index]}
     verified_file="$work_dir/verified/$truststore"
     mkdir -p "$(dirname "$verified_file")"
     docker cp -L "$verification_container:/$truststore" "$verified_file"
-    run_certificate_remover verify "$verified_file" "$TARGET_TRUSTSTORE_PASSWORD"
+    run_certificate_remover verify "$verified_file"
     log "Verified all $ROOT_CERTIFICATE_COUNT affected root subjects are absent from /$truststore"
+    verified_metadata=$(truststore_metadata "$verification_archive" "$truststore")
+    expected_metadata=${truststore_metadata_values[$index]}
+    if [[ "$verified_metadata" != "$expected_metadata" ]]; then
+      echo "::error::Truststore metadata changed for /$truststore: expected $expected_metadata, found $verified_metadata"
+      exit 1
+    fi
+    log "Verified metadata for /$truststore is unchanged ($verified_metadata)"
   done
   echo "::endgroup::"
 fi
 
-log "Successfully hardened $IMAGE"
+log "Successfully hardened $IMAGE: ${#truststores[@]} truststore(s) processed, revocation checks enabled=$ENABLE_REVOCATION"

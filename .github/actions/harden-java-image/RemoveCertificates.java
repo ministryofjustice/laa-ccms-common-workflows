@@ -32,9 +32,8 @@ public final class RemoveCertificates {
 
         String mode = args[0];
         String path = args[1];
-        char[] sourcePassword = requiredPassword("SOURCE_TRUSTSTORE_PASSWORD");
-        char[] targetPassword = requiredPassword("TARGET_TRUSTSTORE_PASSWORD");
-        KeyStore keyStore = load(path, sourcePassword);
+        LoadedKeyStore loaded = load(path);
+        KeyStore keyStore = loaded.keyStore;
         List<String> matchingAliases = findMatchingAliases(keyStore);
 
         if ("verify".equals(mode)) {
@@ -53,7 +52,7 @@ public final class RemoveCertificates {
 
         FileOutputStream output = new FileOutputStream(path);
         try {
-            keyStore.store(output, targetPassword);
+            keyStore.store(output, loaded.password);
         } finally {
             output.close();
         }
@@ -64,28 +63,22 @@ public final class RemoveCertificates {
         System.out.println("REMOVED_COUNT\t" + matchingAliases.size());
     }
 
-    private static char[] requiredPassword(String name) {
-        String value = System.getenv(name);
-        if (value == null || value.isEmpty()) {
-            throw new IllegalArgumentException(name + " is required");
-        }
-        return value.toCharArray();
-    }
-
-    private static KeyStore load(String path, char[] password) throws Exception {
+    private static LoadedKeyStore load(String path) throws Exception {
         Exception lastFailure = null;
         for (String type : Arrays.asList("JKS", "PKCS12")) {
-            try {
-                KeyStore keyStore = KeyStore.getInstance(type);
-                FileInputStream input = new FileInputStream(path);
+            for (char[] password : Arrays.asList("changeit".toCharArray(), new char[0])) {
                 try {
-                    keyStore.load(input, password);
-                } finally {
-                    input.close();
+                    KeyStore keyStore = KeyStore.getInstance(type);
+                    FileInputStream input = new FileInputStream(path);
+                    try {
+                        keyStore.load(input, password);
+                    } finally {
+                        input.close();
+                    }
+                    return new LoadedKeyStore(keyStore, password);
+                } catch (Exception failure) {
+                    lastFailure = failure;
                 }
-                return keyStore;
-            } catch (Exception failure) {
-                lastFailure = failure;
             }
         }
         throw lastFailure;
@@ -115,5 +108,15 @@ public final class RemoveCertificates {
             }
         }
         return "";
+    }
+
+    private static final class LoadedKeyStore {
+        private final KeyStore keyStore;
+        private final char[] password;
+
+        private LoadedKeyStore(KeyStore keyStore, char[] password) {
+            this.keyStore = keyStore;
+            this.password = password;
+        }
     }
 }

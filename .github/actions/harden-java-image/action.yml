@@ -13,9 +13,6 @@ inputs:
     description: Enable CRL distribution point and OCSP checks for JVM TLS connections
     required: false
     default: 'false'
-  truststore_password:
-    description: Password applications use to open the hardened JVM truststores
-    required: false
 
 runs:
   using: composite
@@ -26,5 +23,4 @@ runs:
         IMAGE: ${{ inputs.image }}
         BLOCK_COMPROMISED_CERTIFICATES: ${{ inputs.block_compromised_certificates }}
         ENABLE_REVOCATION: ${{ inputs.enable_revocation }}
-        TRUSTSTORE_PASSWORD: ${{ inputs.truststore_password }}
       run: "${GITHUB_ACTION_PATH}/harden-java-image.sh"
