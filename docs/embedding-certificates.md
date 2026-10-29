@@ -28,13 +28,19 @@ intermediate CAs described in
 [CVE-2026-114820](https://openjdk.org/emudhra). By default, it follows the latest OpenJDK guidance
 and removes the certificates represented by the `emsignrootcag1 [jdk]`,
 `emsignrootcag2 [jdk]`, `emsigneccrootcag3 [jdk]`, and `comodoaaaca [jdk]` standard aliases from
-every JVM `cacerts` truststore after the image is built. The workflow matches X.509 subject common
-names so that it also works when a JVM vendor uses different aliases.
+every JVM `cacerts` truststore after the image is built. It also removes them from the default
+container CA bundle and any `SSL_CERT_FILE` configured in the image. This prevents Paketo's
+`openssl-certificate-loader` from importing an affected OS certificate back into the JVM
+truststore when the container starts. The workflow matches X.509 subject common names so that it
+also works when a JVM or OS vendor uses different aliases.
 
 This applies to both Paketo and Dockerfile builds. Other truststore entries and additional CA
 certificates configured using this guide are preserved. Do not add any of the four removed roots
 through a certificate binding. Existing application images must be rebuilt and redeployed to
 receive the protection.
+
+If `SSL_CERT_FILE` is set only by the deployment environment or points to a runtime-mounted file,
+the workflow cannot inspect that file. The supplied bundle must also exclude these four roots.
 
 The hardening action preserves the JVM truststore's existing format and password. Paketo's
 `openssl-certificate-loader` requires JKS truststores to use `changeit` and passwordless PKCS12
