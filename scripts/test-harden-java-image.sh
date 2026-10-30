@@ -75,11 +75,43 @@ keytool -genkeypair \
   -storepass "$source_truststore_password" \
   -keypass "$source_truststore_password" \
   -noprompt >/dev/null 2>&1
+
+mkdir -p "$work_dir/base/bundles"
+for index in "${!root_aliases[@]}"; do
+  keytool -exportcert \
+    -rfc \
+    -alias "${root_aliases[$index]}" \
+    -keystore "$work_dir/base/cacerts" \
+    -storetype JKS \
+    -storepass "$source_truststore_password" \
+    -file "$work_dir/base/bundles/affected-$index.pem" >/dev/null 2>&1
+done
+keytool -exportcert \
+  -rfc \
+  -alias "$safe_alias" \
+  -keystore "$work_dir/base/cacerts" \
+  -storetype JKS \
+  -storepass "$source_truststore_password" \
+  -file "$work_dir/base/bundles/safe.pem" >/dev/null 2>&1
+cat \
+  "$work_dir/base/bundles/safe.pem" \
+  "$work_dir/base/bundles/affected-0.pem" \
+  "$work_dir/base/bundles/affected-2.pem" \
+  > "$work_dir/base/default-ca-certificates.crt"
+cat \
+  "$work_dir/base/bundles/safe.pem" \
+  "$work_dir/base/bundles/affected-1.pem" \
+  "$work_dir/base/bundles/affected-3.pem" \
+  > "$work_dir/base/custom-ca-certificates.crt"
+
 cat > "$work_dir/base/Dockerfile" <<'EOF'
 FROM scratch
 COPY --chown=1001:1001 --chmod=0644 cacerts /opt/java/lib/security/cacerts
 COPY --chown=1001:1001 --chmod=0644 cacerts /opt/java/jre/lib/security/cacerts
+COPY --chown=1002:1003 --chmod=0640 default-ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --chown=1004:1005 --chmod=0600 custom-ca-certificates.crt /opt/custom/ca-certificates.crt
 ENV JAVA_TOOL_OPTIONS="-Xmx256m"
+ENV SSL_CERT_FILE="/opt/custom/ca-certificates.crt"
 LABEL test.metadata="preserved"
 USER 1001
 ENTRYPOINT ["/application"]
@@ -100,14 +132,27 @@ containers+=("$container")
 mkdir -p "$work_dir/result"
 docker cp "$container:/opt/java/lib/security/cacerts" "$work_dir/result/modern-cacerts"
 docker cp "$container:/opt/java/jre/lib/security/cacerts" "$work_dir/result/java-8-cacerts"
+docker cp "$container:/etc/ssl/certs/ca-certificates.crt" "$work_dir/result/default-ca-certificates.crt"
+docker cp "$container:/opt/custom/ca-certificates.crt" "$work_dir/result/custom-ca-certificates.crt"
 docker cp "$container:/opt/laa-java-security/revocation.security" "$work_dir/result/revocation.security"
 
-for truststore_path in \
-  opt/java/lib/security/cacerts \
-  opt/java/jre/lib/security/cacerts; do
+file_paths=(
+  'opt/java/lib/security/cacerts'
+  'opt/java/jre/lib/security/cacerts'
+  'etc/ssl/certs/ca-certificates.crt'
+  'opt/custom/ca-certificates.crt'
+)
+expected_metadata=(
+  '1001:1001:-rw-r--r--'
+  '1001:1001:-rw-r--r--'
+  '1002:1003:-rw-r-----'
+  '1004:1005:-rw-------'
+)
+for index in "${!file_paths[@]}"; do
+  file_path=${file_paths[$index]}
   metadata=$(
     docker export "$container" |
-      tar --numeric-owner -tvf - "$truststore_path" |
+      tar --numeric-owner -tvf - "$file_path" |
       awk '
         $2 ~ /^[0-9]+\/[0-9]+$/ {
           split($2, owner, "/")
@@ -127,8 +172,8 @@ for truststore_path in \
         }
       '
   )
-  [[ "$metadata" == '1001:1001:-rw-r--r--' ]] ||
-    fail "Truststore metadata changed for /$truststore_path: $metadata"
+  [[ "$metadata" == "${expected_metadata[$index]}" ]] ||
+    fail "Certificate store metadata changed for /$file_path: $metadata"
 done
 
 grep -Fqx 'ocsp.enable=true' "$work_dir/result/revocation.security" ||
@@ -156,6 +201,53 @@ for truststore in "$work_dir/result/modern-cacerts" "$work_dir/result/java-8-cac
     -storepass "$source_truststore_password" >/dev/null 2>&1 ||
     fail "$truststore no longer accepts the password required by the Paketo certificate loader"
 done
+
+mkdir -p "$work_dir/certificate-remover"
+javac -source 8 -target 8 -Xlint:-options \
+  -d "$work_dir/certificate-remover" \
+  "$ACTION_DIR/RemoveCertificates.java"
+for bundle in \
+  "$work_dir/result/default-ca-certificates.crt" \
+  "$work_dir/result/custom-ca-certificates.crt"; do
+  java -cp "$work_dir/certificate-remover" RemoveCertificates verify-pem "$bundle"
+  [[ $(grep -c '^-----BEGIN CERTIFICATE-----$' "$bundle") -eq 1 ]] ||
+    fail "Expected only the unaffected certificate to remain in $bundle"
+done
+
+cp "$work_dir/result/modern-cacerts" "$work_dir/result/paketo-reimport-cacerts"
+mkdir -p "$work_dir/reimport"
+certificate_number=0
+for bundle in \
+  "$work_dir/result/default-ca-certificates.crt" \
+  "$work_dir/result/custom-ca-certificates.crt"; do
+  bundle_name=$(basename "$bundle")
+  awk -v output_directory="$work_dir/reimport" -v prefix="$bundle_name" '
+    /^-----BEGIN CERTIFICATE-----$/ {
+      certificate += 1
+      output = output_directory "/" prefix "-" certificate ".pem"
+    }
+    output != "" {
+      print > output
+    }
+    /^-----END CERTIFICATE-----$/ {
+      close(output)
+      output = ""
+    }
+  ' "$bundle"
+  for certificate in "$work_dir/reimport/$bundle_name"-*.pem; do
+    certificate_number=$((certificate_number + 1))
+    keytool -importcert \
+      -noprompt \
+      -alias "paketo-import-$certificate_number" \
+      -file "$certificate" \
+      -keystore "$work_dir/result/paketo-reimport-cacerts" \
+      -storetype JKS \
+      -storepass "$source_truststore_password" >/dev/null 2>&1
+  done
+done
+java -cp "$work_dir/certificate-remover" \
+  RemoveCertificates verify "$work_dir/result/paketo-reimport-cacerts" ||
+  fail "Paketo-style container CA import reintroduced an affected root"
 
 java_tool_options=$(
   docker image inspect \

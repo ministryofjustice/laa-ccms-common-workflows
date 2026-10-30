@@ -1,12 +1,12 @@
 name: Harden Java image
-description: Remove roots identified by the OpenJDK eMudhra guidance and optionally enable JVM revocation checks
+description: Remove roots identified by the OpenJDK eMudhra guidance from JVM and container CA stores and optionally enable revocation checks
 
 inputs:
   image:
     description: The local image name and tag to harden
     required: true
   block_compromised_certificates:
-    description: Remove the four root certificates identified by the OpenJDK eMudhra guidance
+    description: Remove the four root certificates from JVM truststores and container CA bundles
     required: false
     default: 'true'
   enable_revocation:
