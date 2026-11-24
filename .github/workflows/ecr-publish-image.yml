@@ -102,7 +102,8 @@ permissions:
 
 jobs:
   ecr-publish-image:
-    runs-on: ubuntu-latest
+    # Spring Boot 2.x bootBuildImage calls Docker API v1.24, which the Docker engine on ubuntu-26.04 rejects.
+    runs-on: ubuntu-24.04
 
     name: ${{ inputs.publish == 'true' && 'Publish image' || (inputs.image_scan == 'true' && 'Scan image') || 'Image pipeline' }}
 
