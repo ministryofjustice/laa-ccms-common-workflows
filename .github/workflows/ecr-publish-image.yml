@@ -11,7 +11,6 @@ on:
         required: false
         type: string
         default: 'temurin'
-      # Spring Boot 2.x bootBuildImage needs ubuntu-24.04: ubuntu-26.04's Docker rejects the v1.24 API it uses
       runner:
         required: false
         type: string
