@@ -11,6 +11,10 @@ on:
         required: false
         type: string
         default: 'temurin'
+      runner:
+        required: false
+        type: string
+        default: 'ubuntu-latest'
       image_version:
         required: true
         type: string
@@ -102,7 +106,7 @@ permissions:
 
 jobs:
   ecr-publish-image:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
 
     name: ${{ inputs.publish == 'true' && 'Publish image' || (inputs.image_scan == 'true' && 'Scan image') || 'Image pipeline' }}
 
