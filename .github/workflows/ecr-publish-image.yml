@@ -11,6 +11,11 @@ on:
         required: false
         type: string
         default: 'temurin'
+      # Spring Boot 2.x bootBuildImage needs ubuntu-24.04: ubuntu-26.04's Docker rejects the v1.24 API it uses
+      runner:
+        required: false
+        type: string
+        default: 'ubuntu-latest'
       image_version:
         required: true
         type: string
@@ -102,8 +107,7 @@ permissions:
 
 jobs:
   ecr-publish-image:
-    # Spring Boot 2.x bootBuildImage calls Docker API v1.24, which the Docker engine on ubuntu-26.04 rejects.
-    runs-on: ubuntu-24.04
+    runs-on: ${{ inputs.runner }}
 
     name: ${{ inputs.publish == 'true' && 'Publish image' || (inputs.image_scan == 'true' && 'Scan image') || 'Image pipeline' }}
 
